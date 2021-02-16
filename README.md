@@ -30,3 +30,6 @@ Many contributors have been working on this area while this functionality was pa
 the TYPO3 Core. This package is now maintained by a loose group of TYPO3 enthusiasts inside
 the TYPO3 Community. Feel free to contact Benni Mack (benni.mack@typo3.org) for any questions
 regarding "sys_action".
+
+### Contributors
+Université de Sherbrooke - STI
