@@ -453,7 +453,13 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      */
     protected function isCreatedByUser($id, $action)
     {
-        $record = BackendUtility::getRecord('be_users', $id, '*', ' AND cruser_id=' . $this->getBackendUser()->user['uid'] . ' AND createdByAction=' . $action['uid']);
+        $onlyCreatedByCurrentUser = '';
+
+        if(!$action['t1_all_created_users_visible']) {
+          $onlyCreatedByCurrentUser = 'AND cruser_id=' . $this->getBackendUser()->user['uid'];
+        }
+
+        $record = BackendUtility::getRecord('be_users', $id, '*', $onlyCreatedByCurrentUser . ' AND createdByAction=' . $action['uid']);
         if (is_array($record)) {
             return $record;
         }
@@ -479,14 +485,20 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             ->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
 
+        $onlyCreatedByCurrentUser = '';
+
+        if(!$action['t1_all_created_users_visible']) {
+          $onlyCreatedByCurrentUser = $queryBuilder->expr()->eq(
+            'cruser_id',
+            $queryBuilder->createNamedParameter($this->getBackendUser()->user['uid'], \PDO::PARAM_INT)
+          );
+        }
+
         $res = $queryBuilder
             ->select('*')
             ->from('be_users')
             ->where(
-                $queryBuilder->expr()->eq(
-                    'cruser_id',
-                    $queryBuilder->createNamedParameter($this->getBackendUser()->user['uid'], \PDO::PARAM_INT)
-                ),
+              $onlyCreatedByCurrentUser,
                 $queryBuilder->expr()->eq(
                     'createdByAction',
                     $queryBuilder->createNamedParameter($action['uid'], \PDO::PARAM_INT)
@@ -579,7 +591,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         } else {
             // Check ownership
             $beRec = BackendUtility::getRecord('be_users', (int)$key);
-            if (is_array($beRec) && $beRec['cruser_id'] == $this->getBackendUser()->user['uid']) {
+            $isCreatedByCurrentUser = $beRec['cruser_id'] == $this->getBackendUser()->user['uid'];
+            if (is_array($beRec) && ($isCreatedByCurrentUser || $record['t1_all_created_users_visible'])) {
                 $data = [];
                 $data['be_users'][$key]['username'] = $this->fixUsername($vars['username'], $record['t1_userprefix']);
                 if ($vars['password'] !== '') {

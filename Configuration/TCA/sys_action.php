@@ -131,6 +131,20 @@ return [
                 'minitems' => 1,
             ]
         ],
+        't1_all_created_users_visible' => [
+          'label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.t1_all_created_users_visible',
+          'config' => [
+            'type' => 'check',
+            'renderType' => 'checkboxToggle',
+            'items' => [
+              [
+                0 => '',
+                1 => '',
+              ]
+            ],
+            'default' => 0,
+          ]
+        ],
         't3_listPid' => [
             'label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.t3_listPid',
             'config' => [
@@ -178,7 +192,7 @@ return [
         '],
         '1' => ['showitem' => '
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
-                type,title,t1_userprefix,t1_copy_of_user,t1_allowed_groups,t1_create_user_dir,
+                type,title,t1_userprefix,t1_copy_of_user,t1_allowed_groups,t1_create_user_dir, t1_all_created_users_visible,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
                 hidden,assign_to_groups,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,

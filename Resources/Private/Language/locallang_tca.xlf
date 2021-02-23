@@ -21,6 +21,9 @@
 			<trans-unit id="sys_action.t1_create_user_dir">
 				<source>Create User Home Directory</source>
 			</trans-unit>
+			<trans-unit id="sys_action.t1_all_created_users_visible">
+				<source>Allow all created users to be visible by any action's member</source>
+			</trans-unit>
 			<trans-unit id="sys_action.t1_copy_of_user">
 				<source>Template user</source>
 			</trans-unit>
