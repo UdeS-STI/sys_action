@@ -11,7 +11,6 @@ return [
         'cruser_id' => 'cruser_id',
         'adminOnly' => true,
         'rootLevel' => -1,
-        'setToDefaultOnCopy' => 'assign_to_groups',
         'enablecolumns' => [
             'disabled' => 'hidden'
         ],
@@ -20,9 +19,6 @@ return [
         ],
         'type' => 'type',
         'searchFields' => 'title,description'
-    ],
-    'interface' => [
-        'showRecordFieldList' => 'hidden,title,type,description,assign_to_groups'
     ],
     'columns' => [
         'title' => [
@@ -123,12 +119,10 @@ return [
         't1_copy_of_user' => [
             'label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.t1_copy_of_user',
             'config' => [
-                'type' => 'group',
-                'internal_type' => 'db',
-                'allowed' => 'be_users',
-                'size' => 1,
-                'maxitems' => 1,
-                'minitems' => 1,
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'be_users',
+                'disableNoMatchingValueElement' => true
             ]
         ],
         't1_all_created_users_visible' => [
