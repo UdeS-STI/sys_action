@@ -1,0 +1,12 @@
+################
+### Create backend user ###
+################
+
+# cat=Create backend user; type=boolean; label=LLL:EXT:sys_action/Resources/Private/Language/ExtConfTemplate.xlf:hideFields.password
+isPasswordFieldHidden = 0
+
+# cat=Create backend user; type=boolean; label=LLL:EXT:sys_action/Resources/Private/Language/ExtConfTemplate.xlf:hideFields.email
+isEmailFieldHidden = 0
+
+# cat=Create backend user; type=boolean; label=LLL:EXT:sys_action/Resources/Private/Language/ExtConfTemplate.xlf:hideFields.realName
+isRealNameFieldHidden = 0

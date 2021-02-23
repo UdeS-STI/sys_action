@@ -15,7 +15,9 @@ namespace TYPO3\CMS\SysAction;
  */
 
 use Doctrine\DBAL\DBALException;
+use phpDocumentor\Reflection\Types\Boolean;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
@@ -61,6 +63,21 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     protected $iconFactory;
 
     /**
+    * @var Boolean
+    */
+    protected $isPasswordFieldHidden;
+
+    /**
+    * @var Boolean
+    */
+    protected $isEmailFieldHidden;
+
+    /**
+    * @var Boolean
+    */
+    protected $isRealNameFieldHidden;
+
+    /**
      * Constructor
      * @param \TYPO3\CMS\Taskcenter\Controller\TaskModuleController $taskObject
      */
@@ -75,6 +92,11 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         foreach ($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['sys_action']['tx_sysaction_task'] ?? [] as $className) {
             $this->hookObjects[] = GeneralUtility::makeInstance($className);
         }
+
+        $extensionConfiguration = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('sys_action');
+        $this->isPasswordFieldHidden = $extensionConfiguration['isPasswordFieldHidden'];
+        $this->isEmailFieldHidden = $extensionConfiguration['isEmailFieldHidden'];
+        $this->isRealNameFieldHidden = $extensionConfiguration['isRealNameFieldHidden'];
     }
 
     /**
@@ -337,7 +359,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             if (empty($vars['username'])) {
                 $errors[] = $this->getLanguageService()->getLL('error-username-empty');
             }
-            if ($vars['key'] === 'NEW' && empty($vars['password'])) {
+            if ($vars['key'] === 'NEW' && empty($vars['password']) && !$this->isPasswordFieldHidden) {
                 $errors[] = $this->getLanguageService()->getLL('error-password-empty');
             }
             if ($vars['key'] !== 'NEW' && !$this->isCreatedByUser($vars['key'], $record)) {
@@ -383,6 +405,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 $vars = $rawRecord;
             }
         }
+
         $content .= '<form action="" class="panel panel-default" method="post" enctype="multipart/form-data">
                         <fieldset class="form-section">
                             <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_generalFields')) . '</h4>
@@ -390,7 +413,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                                 <label for="field_disable">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.disable')) . '</label>
                                 <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ($vars['disable'] == 1 ? ' checked="checked" ' : '') . ' />
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" ' . $this->hiddenField($this->isRealNameFieldHidden) . '>
                                 <label for="field_realname">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.name')) . '</label>
                                 <input type="text" id="field_realname" class="form-control" name="data[realName]" value="' . htmlspecialchars($vars['realName']) . '" />
                             </div>
@@ -398,11 +421,11 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                                 <label for="field_username">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.username')) . '</label>
                                 <input type="text" id="field_username" class="form-control" name="data[username]" value="' . htmlspecialchars($vars['username']) . '" />
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" ' . $this->hiddenField($this->isPasswordFieldHidden) . '>
                                 <label for="field_password">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.password')) . '</label>
                                 <input type="password" id="field_password" class="form-control" name="data[password]" value="" />
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" ' . $this->hiddenField($this->isEmailFieldHidden) . '>
                                 <label for="field_email">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.email')) . '</label>
                                 <input type="text" id="field_email" class="form-control" name="data[email]" value="' . htmlspecialchars($vars['email']) . '" />
                             </div>
@@ -1066,5 +1089,9 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     protected function getBackendUser()
     {
         return $GLOBALS['BE_USER'];
+    }
+
+    protected function hiddenField($hidden) {
+      return $hidden ? 'hidden' : '';
     }
 }
