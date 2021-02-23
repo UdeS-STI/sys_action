@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.0">
+    <file source-language="en" datatype="plaintext" original="messages" date="2013-09-19T09:11:39Z" product-name="sys_action">
+        <header/>
+        <body>
+            <trans-unit id="hideFields.password">
+                <source>Hide password field because a third party backend authentication extension is used</source>
+            </trans-unit>
+            <trans-unit id="hideFields.email">
+                <source>Hide email field because a third party backend authentication extension is used</source>
+            </trans-unit>
+            <trans-unit id="hideFields.realName">
+                <source>Hide name field because a third party backend authentication extension is used</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>
