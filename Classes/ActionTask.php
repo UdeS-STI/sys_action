@@ -365,6 +365,9 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             if ($vars['key'] !== 'NEW' && !$this->isCreatedByUser($vars['key'], $record)) {
                 $errors[] = $this->getLanguageService()->getLL('error-wrong-user');
             }
+            if ($vars['key'] === 'NEW' && $this->isUserExists($record, $vars) ) {
+                $errors[] = $this->getLanguageService()->getLL('error-user-exists');
+            }
             foreach ($this->hookObjects as $hookObject) {
                 if (method_exists($hookObject, 'viewNewBackendUser_Error')) {
                     $errors = $hookObject->viewNewBackendUser_Error($vars, $errors, $this);
@@ -599,6 +602,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         $newUserId = 0;
         if ($key === 'NEW') {
             $beRec = BackendUtility::getRecord('be_users', (int)$record['t1_copy_of_user']);
+
             if (is_array($beRec)) {
                 $data = [];
                 $data['be_users'][$key] = $beRec;
@@ -1093,5 +1097,29 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
 
     protected function hiddenField($hidden) {
       return $hidden ? 'hidden' : '';
+    }
+
+     /**
+     *  Validate if the user exists
+     *
+     * @param array $record Current action record
+     * @param array $vars POST vars
+     * @return TRUE/FALSE
+     */
+    protected function isUserExists( $record, $vars ){
+         $connection = GeneralUtility::makeInstance(ConnectionPool::class);
+         $queryBuilder = $connection->getQueryBuilderForTable('be_users');
+         $newUser = $queryBuilder->createNamedParameter($this->fixUsername($vars['username'], $record['t1_userprefix']));
+         $getUser = $queryBuilder
+         ->select('uid')
+         ->from('be_users')
+         ->where($queryBuilder->expr()->eq('username',$newUser ))
+         ->execute();
+
+         if( $getUser->fetch()['uid'] ) {
+              return true;
+         }
+         return false;
+
     }
 }

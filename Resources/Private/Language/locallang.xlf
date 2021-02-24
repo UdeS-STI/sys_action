@@ -93,6 +93,9 @@
 			<trans-unit id="action_toolbaritem">
 				<source>Open System Actions</source>
 			</trans-unit>
+			<trans-unit id="error-user-exists">
+				<source>This user already exists.</source>
+			</trans-unit>
 		</body>
 	</file>
 </xliff>
