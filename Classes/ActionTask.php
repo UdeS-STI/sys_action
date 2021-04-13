@@ -421,7 +421,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                                 <input type="text" id="field_realname" class="form-control" name="data[realName]" value="' . htmlspecialchars($vars['realName']) . '" />
                             </div>
                             <div class="form-group">
-                                <label for="field_username">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.username')) . '</label>
+                                <label for="field_username">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:udes_toolbox/Resources/Private/Language/fr.locallang_tca.xlf:be_users.username')) . '</label>
                                 <input type="text" id="field_username" class="form-control" name="data[username]" value="' . htmlspecialchars($vars['username']) . '" />
                             </div>
                             <div class="form-group" ' . $this->hiddenField($this->isPasswordFieldHidden) . '>
