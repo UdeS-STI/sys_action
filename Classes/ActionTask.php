@@ -753,8 +753,12 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         if (empty($record['t1_allowed_groups'])) {
             return $content;
         }
+        $currentUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
         $content .= '<option value=""></option>';
         $grList = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
+
+        // Filter only current user groups
+        $grList = array_intersect($currentUserGroups, $grList);
         foreach ($grList as $group) {
             $checkGroup = BackendUtility::getRecord('be_groups', $group);
             if (is_array($checkGroup)) {
