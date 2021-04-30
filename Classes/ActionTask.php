@@ -572,8 +572,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         }
         // Link to update the user record
         $href = $this->moduleUrl . '&SET[function]=sys_action.TYPO3\\CMS\\SysAction\\ActionTask&show=' . (int)$sysActionUid . '&be_users_uid=' . (int)$userId;
-        $link = '<a href="' . htmlspecialchars($href) . '">' . htmlspecialchars($username) . '</a>';
-        return $link;
+        return '<a href="' . htmlspecialchars( $href) . '">' . htmlspecialchars( $username) . '</a>';
     }
 
     /**
