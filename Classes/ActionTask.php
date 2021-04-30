@@ -412,7 +412,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         $content .= '<form action="" class="panel panel-default" method="post" enctype="multipart/form-data">
                         <fieldset class="form-section">
                             <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_generalFields')) . '</h4>
-                            <div class="form-group">
+                            <div style="display:none" class="form-group">
                                 <label for="field_disable">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.disable')) . '</label>
                                 <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ($vars['disable'] == 1 ? ' checked="checked" ' : '') . ' />
                             </div>
