@@ -747,17 +747,44 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         if (empty($record['t1_allowed_groups'])) {
             return $content;
         }
-        $currentUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
+
+        $adminUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
+//      error_log('$adminUserGroups: '. print_r($adminUserGroups, true));
         $content .= '<option value=""></option>';
-        $grList = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
+        $allowedGroupsForSysAction = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
+
+        $editedUserGroups = explode(',', $vars['usergroup']);
+//      error_log('$editedUserGroups: '. print_r($editedUserGroups, true));
+        $combinedGroupsFromUserAndAdmin = array_unique(array_merge( $editedUserGroups, $adminUserGroups ));
+//      error_log('$combinedGroupsFromUserAndAdmin: '. print_r($combinedGroupsFromUserAndAdmin, true));
+        $groupsNotAllowedByAdmin = array_diff($combinedGroupsFromUserAndAdmin, $adminUserGroups);
+//      error_log('$groupsNotAllowedByAdmin: '. print_r($groupsNotAllowedByAdmin, true));
 
         // Filter only current user groups
-        $grList = array_intersect($currentUserGroups, $grList);
-        foreach ($grList as $group) {
+        $allowedGroupsForSysAction = array_intersect($combinedGroupsFromUserAndAdmin, $allowedGroupsForSysAction);
+        foreach ($allowedGroupsForSysAction as $group) {
             $checkGroup = BackendUtility::getRecord('be_groups', $group);
             if (is_array($checkGroup)) {
                 $selected = GeneralUtility::inList($vars['usergroup'], $checkGroup['uid']) ? ' selected="selected" ' : '';
-                $content .= '<option ' . $selected . 'value="' . (int)$checkGroup['uid'] . '">' . htmlspecialchars($checkGroup['title']) . '</option>';
+
+                // If usergroup not allowed by current admin, hide it so it cannot be edited but submit
+                if(in_array($group, $groupsNotAllowedByAdmin)){
+                  $content .= '<option readonly ' .
+                              $selected .
+                              'value="' .
+                              (int)$checkGroup['uid'] .
+                              '">' .
+                              htmlspecialchars( $checkGroup['title'] ) .
+                              '</option>';
+                }else {
+                  $content .= '<option ' .
+                              $selected .
+                              'value="' .
+                              (int)$checkGroup['uid'] .
+                              '">' .
+                              htmlspecialchars( $checkGroup['title'] ) .
+                              '</option>';
+                }
             }
         }
         return $content;
