@@ -573,9 +573,6 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         // Link to update the user record
         $href = $this->moduleUrl . '&SET[function]=sys_action.TYPO3\\CMS\\SysAction\\ActionTask&show=' . (int)$sysActionUid . '&be_users_uid=' . (int)$userId;
         $link = '<a href="' . htmlspecialchars($href) . '">' . htmlspecialchars($username) . '</a>';
-        // Link to delete the user record
-        $link .= '
-				<a href="' . htmlspecialchars($href . '&delete=1') . '" class="t3js-confirm-trigger" data-title="' . htmlspecialchars($this->getLanguageService()->getLL('lDelete_warning_title')) . '" data-message="' . htmlspecialchars($this->getLanguageService()->getLL('lDelete_warning')) . '"></a>';
         return $link;
     }
 
