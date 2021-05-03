@@ -437,9 +437,9 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                             <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_configuration')) . '</h4>
                             <div class="form-group">
                                 <label for="field_usergroup">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.usergroup')) . '</label>
-                                <select id="field_usergroup" class="form-control" name="data[usergroup][]" multiple="multiple">
+                                <div id="field_usergroup">
                                     ' . $this->getUsergroups($record, $vars) . '
-                                </select>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <input type="hidden" name="data[key]" value="' . $key . '" />
@@ -749,41 +749,39 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         }
 
         $adminUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
-//      error_log('$adminUserGroups: '. print_r($adminUserGroups, true));
-        $content .= '<option value=""></option>';
         $allowedGroupsForSysAction = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
-
         $editedUserGroups = explode(',', $vars['usergroup']);
-//      error_log('$editedUserGroups: '. print_r($editedUserGroups, true));
         $combinedGroupsFromUserAndAdmin = array_unique(array_merge( $editedUserGroups, $adminUserGroups ));
-//      error_log('$combinedGroupsFromUserAndAdmin: '. print_r($combinedGroupsFromUserAndAdmin, true));
         $groupsNotAllowedByAdmin = array_diff($combinedGroupsFromUserAndAdmin, $adminUserGroups);
-//      error_log('$groupsNotAllowedByAdmin: '. print_r($groupsNotAllowedByAdmin, true));
 
         // Filter only current user groups
         $allowedGroupsForSysAction = array_intersect($combinedGroupsFromUserAndAdmin, $allowedGroupsForSysAction);
         foreach ($allowedGroupsForSysAction as $group) {
             $checkGroup = BackendUtility::getRecord('be_groups', $group);
             if (is_array($checkGroup)) {
-                $selected = GeneralUtility::inList($vars['usergroup'], $checkGroup['uid']) ? ' selected="selected" ' : '';
+                $selected = GeneralUtility::inList($vars['usergroup'], $checkGroup['uid']) ? ' checked ' : '';
 
                 // If usergroup not allowed by current admin, hide it so it cannot be edited but submit
                 if(in_array($group, $groupsNotAllowedByAdmin)){
-                  $content .= '<option readonly ' .
+                  $content .= '<label class="form-control"><input style="opacity:0.3;margin: 3px 4px 5px 0;vertical-align: middle;" onclick="return false;" ' .
+                              'type="checkbox" ' .
                               $selected .
+                              'name="data[usergroup][]" ' .
                               'value="' .
                               (int)$checkGroup['uid'] .
                               '">' .
                               htmlspecialchars( $checkGroup['title'] ) .
-                              '</option>';
+                              '</label>';
                 }else {
-                  $content .= '<option ' .
+                  $content .= '<label class="form-control"><input style="margin: 3px 4px 5px 0;vertical-align: middle;"  ' .
+                              'type="checkbox" ' .
                               $selected .
+                              'name="data[usergroup][]" ' .
                               'value="' .
                               (int)$checkGroup['uid'] .
                               '">' .
                               htmlspecialchars( $checkGroup['title'] ) .
-                              '</option>';
+                              '</label>';
                 }
             }
         }
