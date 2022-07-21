@@ -208,7 +208,12 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
 
         // Editors can only see the actions which are assigned to a usergroup they belong to
         if (!$backendUser->isAdmin()) {
-            $groupList = $backendUser->groupList ?: '0';
+          $userGroups = $backendUser->userGroups ?? [];
+
+          $extractGroupId = function ($group){
+            return (int)$group['uid'];
+          };
+          $userGroupIds = array_map($extractGroupId, $userGroups);
 
             $queryBuilder->getRestrictions()
                 ->add(GeneralUtility::makeInstance(HiddenRestriction::class));
@@ -236,7 +241,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                     $queryBuilder->expr()->in(
                         'be_groups.uid',
                         $queryBuilder->createNamedParameter(
-                            GeneralUtility::intExplode(',', $groupList, true),
+                          $userGroupIds,
                             Connection::PARAM_INT_ARRAY
                         )
                     )
@@ -246,7 +251,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
         $queryResult = $queryBuilder->execute();
-        while ($actionRow = $queryResult->fetch()) {
+        while ($actionRow = $queryResult->fetchAssociative()) {
             $editActionLink = '';
 
             // Admins are allowed to edit sys_action records
@@ -350,7 +355,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         }
         $vars = GeneralUtility::_POST('data');
         $key = 'NEW';
-        if ($vars['sent'] == 1) {
+        if (isset($vars['sent']) && $vars['sent'] == 1) {
             $errors = [];
             // Basic error checks
             if (!empty($vars['email']) && !GeneralUtility::validEmail($vars['email'])) {
@@ -414,15 +419,15 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                             <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_generalFields')) . '</h4>
                             <div style="display:none" class="form-group">
                                 <label for="field_disable">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.disable')) . '</label>
-                                <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ($vars['disable'] == 1 ? ' checked="checked" ' : '') . ' />
+                                <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ((isset($vars['disable']) && $vars['disable'] == 1) ? ' checked="checked" ' : '') . ' />
                             </div>
                             <div class="form-group" ' . $this->hiddenField($this->isRealNameFieldHidden) . '>
                                 <label for="field_realname">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.name')) . '</label>
-                                <input type="text" id="field_realname" class="form-control" name="data[realName]" value="' . htmlspecialchars($vars['realName']) . '" />
+                                <input type="text" id="field_realname" class="form-control" name="data[realName]" value="' . htmlspecialchars($vars['realName'] ?? '') . '" />
                             </div>
                             <div class="form-group">
                                 <label for="field_username">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:udes_toolbox/Resources/Private/Language/fr.locallang_tca.xlf:be_users.username')) . '</label>
-                                <input type="text" id="field_username" class="form-control" name="data[username]" value="' . htmlspecialchars($vars['username']) . '" />
+                                <input type="text" id="field_username" class="form-control" name="data[username]" value="' . htmlspecialchars($vars['username'] ?? '') . '" />
                             </div>
                             <div class="form-group" ' . $this->hiddenField($this->isPasswordFieldHidden) . '>
                                 <label for="field_password">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.password')) . '</label>
@@ -430,7 +435,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                             </div>
                             <div class="form-group" ' . $this->hiddenField($this->isEmailFieldHidden) . '>
                                 <label for="field_email">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.email')) . '</label>
-                                <input type="text" id="field_email" class="form-control" name="data[email]" value="' . htmlspecialchars($vars['email']) . '" />
+                                <input type="text" id="field_email" class="form-control" name="data[email]" value="' . htmlspecialchars($vars['email'] ?? '') . '" />
                             </div>
                         </fieldset>
                         <fieldset class="form-section">
@@ -534,7 +539,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             ->execute();
 
         // Render the user records
-        while ($row = $res->fetch()) {
+        while ($row = $res->fetchAssociative()) {
             $icon = '<span title="' . htmlspecialchars('uid=' . $row['uid']) . '">' . $this->iconFactory->getIconForRecord('be_users', $row, Icon::SIZE_SMALL)->render() . '</span>';
             $line = $icon . $this->action_linkUserName($row['username'], $row['realName'], $action['uid'], $row['uid']);
             // Selected user
@@ -584,8 +589,9 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      */
     protected function saveNewBackendUser($record, $vars)
     {
+      error_log(print_r($record, 1));
         // Check if the usergroup is allowed
-        $vars['usergroup'] = $this->fixUserGroup($vars['usergroup'], $record);
+        $vars['usergroup'] = $this->fixUserGroup($vars['usergroup'] ?? [], $record);
         $key = $vars['key'];
         $vars['password'] = trim($vars['password']);
         // Check if md5 is used as password encryption
@@ -604,7 +610,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 $data['be_users'][$key]['password'] = $vars['password'];
                 $data['be_users'][$key]['realName'] = $vars['realName'];
                 $data['be_users'][$key]['email'] = $vars['email'];
-                $data['be_users'][$key]['disable'] = (int)$vars['disable'];
+                $data['be_users'][$key]['disable'] = (int)($vars['disable'] ?? 0);
                 $data['be_users'][$key]['admin'] = 0;
                 $data['be_users'][$key]['usergroup'] = $vars['usergroup'];
                 $data['be_users'][$key]['createdByAction'] = $record['uid'];
@@ -621,7 +627,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 }
                 $data['be_users'][$key]['realName'] = $vars['realName'];
                 $data['be_users'][$key]['email'] = $vars['email'];
-                $data['be_users'][$key]['disable'] = (int)$vars['disable'];
+                $data['be_users'][$key]['disable'] = (int)($vars['disable'] ?? 0);
                 $data['be_users'][$key]['admin'] = 0;
                 $data['be_users'][$key]['usergroup'] = $vars['usergroup'];
                 $newUserId = $key;
@@ -633,7 +639,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $dataHandler->start($data, [], $this->getBackendUser());
             $dataHandler->admin = 1;
             $dataHandler->process_datamap();
-            $newUserId = (int)$dataHandler->substNEWwithIDs['NEW'];
+            $newUserId = (int)($dataHandler->substNEWwithIDs['NEW'] ?? 0);
             if ($newUserId) {
                 // Create
                 $this->action_createDir($newUserId);
@@ -750,7 +756,13 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
 
         $adminUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
         $allowedGroupsForSysAction = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
-        $editedUserGroups = explode(',', $vars['usergroup']);
+
+        if(isset($vars['usergroup']) && !is_array($vars['usergroup'])) {
+          $editedUserGroups = explode(',', $vars['usergroup'] ?? '');
+        } else {
+          $editedUserGroups = [];
+        }
+
         $combinedGroupsFromUserAndAdmin = array_unique(array_merge( $editedUserGroups, $adminUserGroups ));
         $groupsNotAllowedByAdmin = array_diff($combinedGroupsFromUserAndAdmin, $adminUserGroups);
 
@@ -759,7 +771,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         foreach ($allowedGroupsForSysAction as $group) {
             $checkGroup = BackendUtility::getRecord('be_groups', $group);
             if (is_array($checkGroup)) {
-                $selected = GeneralUtility::inList($vars['usergroup'], $checkGroup['uid']) ? ' checked ' : '';
+                $selected = in_array($checkGroup['uid'], $editedUserGroups) ? ' checked ' : '';
 
                 // If usergroup not allowed by current admin, hide it so it cannot be edited but submit
                 if(in_array($group, $groupsNotAllowedByAdmin)){
@@ -1127,9 +1139,10 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      *
      * @param array $record Current action record
      * @param array $vars POST vars
-     * @return TRUE/FALSE
+     * @return bool
      */
-    protected function isUserExists( $record, $vars ){
+    protected function isUserExists( $record, $vars ): bool
+    {
          $connection = GeneralUtility::makeInstance(ConnectionPool::class);
          $queryBuilder = $connection->getQueryBuilderForTable('be_users');
          $newUser = $queryBuilder->createNamedParameter($this->fixUsername($vars['username'], $record['t1_userprefix']));
@@ -1139,10 +1152,6 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
          ->where($queryBuilder->expr()->eq('username',$newUser ))
          ->execute();
 
-         if( $getUser->fetch()['uid'] ) {
-              return true;
-         }
-         return false;
-
+         return $getUser->fetchOne();
     }
 }
