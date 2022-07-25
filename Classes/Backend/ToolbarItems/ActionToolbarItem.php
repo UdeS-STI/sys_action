@@ -122,7 +122,7 @@ class ActionToolbarItem implements ToolbarItemInterface
         /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
         $result = $queryBuilder->execute();
-        while ($actionRow = $result->fetch()) {
+        while ($actionRow = $result->fetchAssociative()) {
             $actionRow['link'] = sprintf(
                 '%s&SET[mode]=tasks&SET[function]=sys_action.%s&show=%u',
                 (string)$uriBuilder->buildUriFromRoute('user_task'),

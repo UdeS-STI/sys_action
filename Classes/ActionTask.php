@@ -734,7 +734,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     {
         $path = $GLOBALS['TYPO3_CONF_VARS']['BE']['userHomePath'];
         // If path is set and a valid directory
-        if ($path && @is_dir($path) && $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath'] && GeneralUtility::isFirstPartOfStr($path, $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath']) && substr($path, -1) === '/') {
+        if ($path && @is_dir($path) && $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath'] && str_starts_with($path, $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath']) && str_ends_with($path, '/')) {
             return $path;
         }
     }
@@ -893,7 +893,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                     try {
                         $dataRows = GeneralUtility::makeInstance(ConnectionPool::class)
                             ->getConnectionForTable($sql_query['qC']['queryTable'])
-                            ->executeQuery($sqlQuery)->fetchAll();
+                            ->executeQuery($sqlQuery)->fetchAllAssociative();
                         // Additional configuration
                         $this->taskObject->MOD_SETTINGS['search_result_labels'] = $sql_query['qC']['search_result_labels'];
                         $this->taskObject->MOD_SETTINGS['queryFields'] = $sql_query['qC']['queryFields'];
@@ -908,7 +908,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                             $actionContent .= '<a href="' . htmlspecialchars(GeneralUtility::getIndpEnv('REQUEST_URI') . '&download_file=1') . '">'
                                 . '<strong>' . htmlspecialchars($this->getLanguageService()->getLL('action_download_file')) . '</strong></a>';
                         }
-                    } catch (DBALException $e) {
+                    } catch (\Exception $e) {
                         $actionContent .= $e->getMessage();
                     }
                 } else {
