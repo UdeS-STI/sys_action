@@ -29,3 +29,9 @@ CREATE TABLE sys_action_asgr_mm (
   KEY uid_foreign (uid_foreign)
 );
 
+#
+# Ajout du champ createdByAction qui a été retiré à partir de typo3 v11
+#
+CREATE TABLE be_users (
+  createdByAction int(11) DEFAULT '0' NOT NULL,
+);
