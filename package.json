@@ -1,6 +1,6 @@
 {
     "name": "sys_action",
-    "description": "Extension sys_action Typo3 v10",
+    "description": "Extension sys_action Typo3 v11",
     "devDependencies": {
         "@prettier/plugin-php": "^0.15.2",
         "eslint": "^7.13.0",
