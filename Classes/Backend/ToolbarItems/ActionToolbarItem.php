@@ -81,7 +81,12 @@ class ActionToolbarItem implements ToolbarItemInterface
         }
 
         if (!$backendUser->isAdmin()) {
-            $groupList = $backendUser->groupList ?: '0';
+          $userGroups = $backendUser->userGroups ?? [];
+
+          $extractGroupId = function ($group){
+            return (int)$group['uid'];
+          };
+          $userGroupIds = array_map($extractGroupId, $userGroups);
 
             $queryBuilder
                 ->join(
@@ -106,7 +111,7 @@ class ActionToolbarItem implements ToolbarItemInterface
                     $queryBuilder->expr()->in(
                         'be_groups.uid',
                         $queryBuilder->createNamedParameter(
-                            GeneralUtility::intExplode(',', $groupList, true),
+                          $userGroupIds,
                             Connection::PARAM_INT_ARRAY
                         )
                     )
@@ -117,7 +122,7 @@ class ActionToolbarItem implements ToolbarItemInterface
         /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
         $result = $queryBuilder->execute();
-        while ($actionRow = $result->fetch()) {
+        while ($actionRow = $result->fetchAssociative()) {
             $actionRow['link'] = sprintf(
                 '%s&SET[mode]=tasks&SET[function]=sys_action.%s&show=%u',
                 (string)$uriBuilder->buildUriFromRoute('user_task'),
