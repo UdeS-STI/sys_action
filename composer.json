@@ -10,8 +10,21 @@
 		"role": "Developer"
 	}],
 	"config": {
-		"sort-packages": true
+		"sort-packages": true,
+		"allow-plugins": {
+			"typo3/class-alias-loader": true,
+			"typo3/cms-composer-installers": true
+		}
 	},
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://nexus.outils.sti.usherbrooke.ca/repository/composer"
+    },
+    {
+      "packagist.org": false
+    }
+  ],
 	"require": {
 		"typo3/cms-core": ">=10.4",
 		"udes/taskcenter": "^1.0.0"
