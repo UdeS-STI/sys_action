@@ -4,7 +4,6 @@ $GLOBALS['TCA']['be_users']['columns']['createdByAction']['config']['type'] = 'p
 
 $tempColumns = [
   'createdByAction' => [
-    'exclude' => 1,
     'label' => 'createdByAction',
     'config' => [
       'type' => 'passthrough',

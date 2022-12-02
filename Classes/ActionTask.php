@@ -589,7 +589,6 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      */
     protected function saveNewBackendUser($record, $vars)
     {
-      error_log(print_r($record, 1));
         // Check if the usergroup is allowed
         $vars['usergroup'] = $this->fixUserGroup($vars['usergroup'] ?? [], $record);
         $key = $vars['key'];
