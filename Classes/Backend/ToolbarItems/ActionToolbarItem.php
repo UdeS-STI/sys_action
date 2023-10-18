@@ -73,7 +73,7 @@ class ActionToolbarItem implements ToolbarItemInterface
             ]));
 
         $queryBuilder
-            ->select('sys_action.*')
+            ->select('sys_action.uid', 'sys_action.title')
             ->from('sys_action');
 
         if (!empty($GLOBALS['TCA']['sys_action']['ctrl']['sortby'])) {
@@ -116,7 +116,7 @@ class ActionToolbarItem implements ToolbarItemInterface
                         )
                     )
                 )
-                ->groupBy('sys_action.uid');
+                ->groupBy('sys_action.uid', 'sys_action.title');
         }
 
         /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
