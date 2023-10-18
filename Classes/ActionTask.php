@@ -195,7 +195,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         $actionList = [];
 
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_action');
-        $queryBuilder->select('sys_action.*')
+        $queryBuilder->select('sys_action.uid', 'sys_action.title', 'sys_action.description')
             ->from('sys_action');
 
         if (!empty($GLOBALS['TCA']['sys_action']['ctrl']['sortby'])) {
@@ -246,7 +246,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                         )
                     )
                 )
-                ->groupBy('sys_action.uid');
+                ->groupBy('sys_action.uid', 'sys_action.title', 'sys_action.description');
         }
         /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
