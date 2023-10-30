@@ -13,7 +13,8 @@ namespace TYPO3\CMS\SysAction\Backend\ToolbarItems;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Backend\Routing\UriBuilder;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Backend\Toolbar\ToolbarItemInterface;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -119,8 +120,8 @@ class ActionToolbarItem implements ToolbarItemInterface
                 ->groupBy('sys_action.uid', 'sys_action.title');
         }
 
-        /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-        $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         $result = $queryBuilder->execute();
         while ($actionRow = $result->fetchAssociative()) {
             $actionRow['link'] = sprintf(
@@ -179,7 +180,7 @@ class ActionToolbarItem implements ToolbarItemInterface
     /**
      * Returns the current BE user.
      *
-     * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+     * @return BackendUserAuthentication
      */
     protected function getBackendUser()
     {

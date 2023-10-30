@@ -8,7 +8,6 @@ return [
         'prependAtCopy' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.prependAtCopy',
         'title' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action',
         'crdate' => 'crdate',
-        'cruser_id' => 'cruser_id',
         'adminOnly' => true,
         'rootLevel' => -1,
         'enablecolumns' => [
@@ -27,7 +26,8 @@ return [
                 'type' => 'input',
                 'size' => 25,
                 'max' => 255,
-                'eval' => 'trim,required'
+                'eval' => 'trim',
+                'required' => true
             ]
         ],
         'description' => [
@@ -45,7 +45,7 @@ return [
                 'renderType' => 'checkboxToggle',
                 'items' => [
                     [
-                        0 => '',
+                        'label' => '',
                         1 => '',
                         'invertStateDisplay' => true
                     ]
@@ -58,12 +58,12 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'items' => [
-                    ['', '0'],
-                    ['LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.1', '1'],
-                    ['LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.2', '2'],
-                    ['LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.3', '3'],
-                    ['LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.4', '4'],
-                    ['LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.5', '5']
+                    ['label' => '', 'value' => '0'],
+                    ['label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.1', 'value' => '1'],
+                    ['label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.2', 'value' => '2'],
+                    ['label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.3', 'value' => '3'],
+                    ['label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.4', 'value' => '4'],
+                    ['label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.type.5', 'value' => '5']
                 ]
             ]
         ],
@@ -110,7 +110,7 @@ return [
                 'renderType' => 'checkboxToggle',
                 'items' => [
                     [
-                        0 => '',
+                        'label' => '',
                         1 => '',
                     ]
                 ],
@@ -132,7 +132,7 @@ return [
             'renderType' => 'checkboxToggle',
             'items' => [
               [
-                0 => '',
+                'label' => '',
                 1 => '',
               ]
             ],
@@ -143,7 +143,6 @@ return [
             'label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.t3_listPid',
             'config' => [
                 'type' => 'group',
-                'internal_type' => 'db',
                 'allowed' => 'pages',
                 'size' => 1,
                 'maxitems' => 1,
@@ -157,7 +156,7 @@ return [
                 'renderType' => 'selectSingle',
                 'special' => 'tables',
                 'items' => [
-                    ['', '']
+                    ['label' => '', 'value' => '']
                 ]
             ]
         ],
@@ -165,7 +164,6 @@ return [
             'label' => 'LLL:EXT:sys_action/Resources/Private/Language/locallang_tca.xlf:sys_action.t4_recordsToEdit',
             'config' => [
                 'type' => 'group',
-                'internal_type' => 'db',
                 'allowed' => '*',
                 'prepend_tname' => true,
                 'size' => 5,

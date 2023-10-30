@@ -13,7 +13,18 @@ namespace TYPO3\CMS\SysAction;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Taskcenter\TaskInterface;
+use TYPO3\CMS\Taskcenter\Controller\TaskModuleController;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
+use TYPO3\CMS\Core\Messaging\AbstractMessage;
+use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Database\RelationHandler;
+use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
+use TYPO3\CMS\Core\Database\QueryView;
+use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use Doctrine\DBAL\DBALException;
 use phpDocumentor\Reflection\Types\Boolean;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
@@ -36,10 +47,10 @@ use TYPO3\CMS\Core\Utility\HttpUtility;
  * This class provides a task for the taskcenter
  * @internal
  */
-class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
+class ActionTask implements TaskInterface
 {
     /**
-     * @var \TYPO3\CMS\Taskcenter\Controller\TaskModuleController
+     * @var TaskModuleController
      */
     protected $taskObject;
 
@@ -79,13 +90,13 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
 
     /**
      * Constructor
-     * @param \TYPO3\CMS\Taskcenter\Controller\TaskModuleController $taskObject
+     * @param TaskModuleController $taskObject
      */
-    public function __construct(\TYPO3\CMS\Taskcenter\Controller\TaskModuleController $taskObject)
+    public function __construct(TaskModuleController $taskObject, private PageRenderer $pageRenderer)
     {
         $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-        $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         $this->moduleUrl = (string)$uriBuilder->buildUriFromRoute('user_task');
         $this->taskObject = $taskObject;
         $this->getLanguageService()->includeLLFile('EXT:sys_action/Resources/Private/Language/locallang.xlf');
@@ -124,7 +135,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 $this->addMessage(
                     $this->getLanguageService()->getLL('action_error-not-found'),
                     $this->getLanguageService()->getLL('action_error'),
-                    FlashMessage::ERROR
+                    AbstractMessage::ERROR
                 );
             } else {
                 // Render the task
@@ -152,7 +163,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                         $this->addMessage(
                             $this->getLanguageService()->getLL('action_noType'),
                             $this->getLanguageService()->getLL('action_error'),
-                            FlashMessage::ERROR
+                            AbstractMessage::ERROR
                         );
                         $content .= $this->renderFlashMessages();
                 }
@@ -248,8 +259,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 )
                 ->groupBy('sys_action.uid', 'sys_action.title', 'sys_action.description');
         }
-        /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-        $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         $queryResult = $queryBuilder->execute();
         while ($actionRow = $queryResult->fetchAssociative()) {
             $editActionLink = '';
@@ -309,13 +320,13 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_not-found-description'),
                 $this->getLanguageService()->getLL('action_not-found'),
-                FlashMessage::INFO
+                AbstractMessage::INFO
             );
         }
         // Admin users can create a new action
         if ($this->getBackendUser()->isAdmin()) {
-            /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-            $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+            /** @var UriBuilder $uriBuilder */
+            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
             $link = (string)$uriBuilder->buildUriFromRoute(
                 'record_edit',
                 [
@@ -348,7 +359,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_notReady'),
                 $this->getLanguageService()->getLL('action_error'),
-                FlashMessage::ERROR
+                AbstractMessage::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
@@ -383,7 +394,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 $this->addMessage(
                     implode(LF, $errors),
                     $this->getLanguageService()->getLL('action_error'),
-                    FlashMessage::ERROR
+                    AbstractMessage::ERROR
                 );
             } else {
                 // Save user
@@ -467,7 +478,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     {
         GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('be_users')->update(
             'be_users',
-            ['deleted' => 1, 'tstamp' => (int)$GLOBALS['ACCESS_TIME']],
+            ['deleted' => 1, 'tstamp' => (int)GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('date', 'timestamp')],
             ['uid' => (int)$userId]
         );
 
@@ -534,9 +545,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                     'createdByAction',
                     $queryBuilder->createNamedParameter($action['uid'], \PDO::PARAM_INT)
                 )
-            )
-            ->orderBy('username')
-            ->execute();
+            )->orderBy('username')->executeQuery();
 
         // Render the user records
         while ($row = $res->fetchAssociative()) {
@@ -634,7 +643,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         }
         // Save/update user by using DataHandler
         if (is_array($data)) {
-            $dataHandler = GeneralUtility::makeInstance(\TYPO3\CMS\Core\DataHandling\DataHandler::class);
+            $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
             $dataHandler->start($data, [], $this->getBackendUser());
             $dataHandler->admin = 1;
             $dataHandler->process_datamap();
@@ -806,8 +815,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      */
     protected function viewNewRecord($record)
     {
-        /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-        $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         $link = (string)$uriBuilder->buildUriFromRoute(
             'record_edit',
             [
@@ -828,7 +837,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     {
         $content = '';
         $actionList = [];
-        $dbAnalysis = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\RelationHandler::class);
+        $dbAnalysis = GeneralUtility::makeInstance(RelationHandler::class);
         $dbAnalysis->setFetchAllFields(true);
         $dbAnalysis->start($record['t4_recordsToEdit'], '*');
         $dbAnalysis->getFromDB();
@@ -846,8 +855,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             if (isset($record['crdate'])) {
                 $description .= ' - ' . htmlspecialchars(BackendUtility::dateTimeAge($record['crdate']));
             }
-            /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-            $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+            /** @var UriBuilder $uriBuilder */
+            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
             $link = (string)$uriBuilder->buildUriFromRoute(
                 'record_edit',
                 [
@@ -878,7 +887,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     protected function viewSqlQuery($record)
     {
         $content = '';
-        if (\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::isLoaded('lowlevel')) {
+        if (ExtensionManagementUtility::isLoaded('lowlevel')) {
             $sql_query = unserialize($record['t2_data']);
             if (!is_array($sql_query) || is_array($sql_query) && stripos(trim($sql_query['qSelect']), 'SELECT') === 0) {
                 $actionContent = '';
@@ -897,7 +906,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                         $this->taskObject->MOD_SETTINGS['search_result_labels'] = $sql_query['qC']['search_result_labels'];
                         $this->taskObject->MOD_SETTINGS['queryFields'] = $sql_query['qC']['queryFields'];
 
-                        $fullsearch = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\QueryView::class, $GLOBALS['SOBE']->MOD_SETTINGS);
+                        $fullsearch = GeneralUtility::makeInstance(QueryView::class, $GLOBALS['SOBE']->MOD_SETTINGS);
                         $fullsearch->noDownloadB = 1;
                         $fullsearch->formW = 48;
                         $cP = $fullsearch->getQueryResultCode($type, $dataRows, $sql_query['qC']['queryTable']);
@@ -916,7 +925,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                     $this->addMessage(
                         $this->getLanguageService()->getLL('action_emptyQuery'),
                         $this->getLanguageService()->getLL('action_error'),
-                        FlashMessage::ERROR
+                        AbstractMessage::ERROR
                     );
                     $content .= $this->renderFlashMessages();
                 }
@@ -925,8 +934,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                     if (!$queryIsEmpty) {
                         $actionContent .= '<div class="panel panel-default"><div class="panel-body"><pre>' . htmlspecialchars($sql_query['qSelect']) . '</pre></div></div>';
                     }
-                    /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-                    $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+                    /** @var UriBuilder $uriBuilder */
+                    $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
                     $actionContent .= '<a title="' . htmlspecialchars($this->getLanguageService()->getLL('action_editQuery')) . '" class="btn btn-default" href="'
                         . htmlspecialchars((string)$uriBuilder->buildUriFromRoute('system_dbint')
                             . '&id=' . '&SET[function]=search' . '&SET[search]=query'
@@ -942,7 +951,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
                 $this->addMessage(
                     $this->getLanguageService()->getLL('action_notReady'),
                     $this->getLanguageService()->getLL('action_error'),
-                    FlashMessage::ERROR
+                    AbstractMessage::ERROR
                 );
                 $content .= $this->renderFlashMessages();
             }
@@ -951,7 +960,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_lowlevelMissing'),
                 $this->getLanguageService()->getLL('action_error'),
-                FlashMessage::ERROR
+                AbstractMessage::ERROR
             );
             $content .= $this->renderFlashMessages();
         }
@@ -973,7 +982,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_notReady'),
                 $this->getLanguageService()->getLL('action_error'),
-                FlashMessage::ERROR
+                AbstractMessage::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
@@ -987,7 +996,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
         // If there is access to the page, then render the list contents and set up the document template object:
         if ($access) {
             // Initialize the dblist object:
-            $dblist = GeneralUtility::makeInstance(\TYPO3\CMS\SysAction\ActionList::class);
+            $dblist = GeneralUtility::makeInstance(ActionList::class);
             $dblist->script = GeneralUtility::getIndpEnv('REQUEST_URI');
             $dblist->calcPerms = $this->getBackendUser()->calcPerms($this->pageinfo);
             $dblist->thumbs = $this->getBackendUser()->uc['thumbnailsByDefault'];
@@ -1000,13 +1009,13 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $dblist->modTSconfig = $this->taskObject->modTSconfig;
             $dblist->dontShowClipControlPanels = (!$this->taskObject->MOD_SETTINGS['bigControlPanel'] && $dblist->clipObj->current === 'normal' && !$this->modTSconfig['properties']['showClipControlPanelsDespiteOfCMlayers']);
             // Initialize the listing object, dblist, for rendering the list:
-            $this->pointer = \TYPO3\CMS\Core\Utility\MathUtility::forceIntegerInRange(GeneralUtility::_GP('pointer'), 0, 100000);
+            $this->pointer = MathUtility::forceIntegerInRange(GeneralUtility::_GP('pointer'), 0, 100000);
             $dblist->start($this->id, $this->table, $this->pointer);
             $dblist->setDispFields();
             // Render the list of tables:
             $dblist->generateList();
-            /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-            $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+            /** @var UriBuilder $uriBuilder */
+            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
             // Add JavaScript functions to the page:
             $this->taskObject->getModuleTemplate()->addJavaScriptCode(
                 'ActionTaskInlineJavascript',
@@ -1061,8 +1070,8 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
 			'
             );
             // Setting up the context sensitive menu:
-            $this->taskObject->getModuleTemplate()->getPageRenderer()->loadRequireJsModule('TYPO3/CMS/Backend/ContextMenu');
-            $this->taskObject->getModuleTemplate()->getPageRenderer()->loadRequireJsModule('TYPO3/CMS/Backend/AjaxDataHandler');
+            $this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/ContextMenu');
+            $this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/AjaxDataHandler');
             // Begin to compile the whole page
             $content .= '<form action="' . htmlspecialchars($dblist->listURL()) . '" method="post" name="dblistForm">' . $dblist->HTMLcode . '<input type="hidden" name="cmd_table" /><input type="hidden" name="cmd" /></form>';
             // If a listing was produced, create the page footer with search form etc:
@@ -1075,7 +1084,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_error-access'),
                 $this->getLanguageService()->getLL('action_error'),
-                FlashMessage::ERROR
+                AbstractMessage::ERROR
             );
             $content .= $this->renderFlashMessages();
         }
@@ -1089,7 +1098,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
      *
      * @throws \TYPO3\CMS\Core\Exception
      */
-    protected function addMessage($message, $title = '', $severity = FlashMessage::OK)
+    protected function addMessage($message, $title = '', $severity = AbstractMessage::OK)
     {
         $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $message, $title, $severity);
         $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
@@ -1112,7 +1121,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     /**
      * Returns LanguageService
      *
-     * @return \TYPO3\CMS\Core\Localization\LanguageService
+     * @return LanguageService
      */
     protected function getLanguageService()
     {
@@ -1122,7 +1131,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
     /**
      * Returns the current BE user.
      *
-     * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+     * @return BackendUserAuthentication
      */
     protected function getBackendUser()
     {
@@ -1147,9 +1156,7 @@ class ActionTask implements \TYPO3\CMS\Taskcenter\TaskInterface
          $newUser = $queryBuilder->createNamedParameter($this->fixUsername($vars['username'], $record['t1_userprefix']));
          $getUser = $queryBuilder
          ->select('uid')
-         ->from('be_users')
-         ->where($queryBuilder->expr()->eq('username',$newUser ))
-         ->execute();
+         ->from('be_users')->where($queryBuilder->expr()->eq('username',$newUser ))->executeQuery();
 
          return $getUser->fetchOne();
     }
