@@ -13,6 +13,8 @@ namespace TYPO3\CMS\SysAction;
  *
  * The TYPO3 project - inspiring people to share!
  */
+
+use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Taskcenter\TaskInterface;
 use TYPO3\CMS\Taskcenter\Controller\TaskModuleController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -135,7 +137,7 @@ class ActionTask implements TaskInterface
                 $this->addMessage(
                     $this->getLanguageService()->getLL('action_error-not-found'),
                     $this->getLanguageService()->getLL('action_error'),
-                    AbstractMessage::ERROR
+                  ContextualFeedbackSeverity::ERROR
                 );
             } else {
                 // Render the task
@@ -163,7 +165,7 @@ class ActionTask implements TaskInterface
                         $this->addMessage(
                             $this->getLanguageService()->getLL('action_noType'),
                             $this->getLanguageService()->getLL('action_error'),
-                            AbstractMessage::ERROR
+                          ContextualFeedbackSeverity::ERROR
                         );
                         $content .= $this->renderFlashMessages();
                 }
@@ -320,7 +322,7 @@ class ActionTask implements TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_not-found-description'),
                 $this->getLanguageService()->getLL('action_not-found'),
-                AbstractMessage::INFO
+              ContextualFeedbackSeverity::INFO
             );
         }
         // Admin users can create a new action
@@ -359,7 +361,7 @@ class ActionTask implements TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_notReady'),
                 $this->getLanguageService()->getLL('action_error'),
-                AbstractMessage::ERROR
+              ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
@@ -394,7 +396,7 @@ class ActionTask implements TaskInterface
                 $this->addMessage(
                     implode(LF, $errors),
                     $this->getLanguageService()->getLL('action_error'),
-                    AbstractMessage::ERROR
+                    ContextualFeedbackSeverity::ERROR
                 );
             } else {
                 // Save user
@@ -925,7 +927,7 @@ class ActionTask implements TaskInterface
                     $this->addMessage(
                         $this->getLanguageService()->getLL('action_emptyQuery'),
                         $this->getLanguageService()->getLL('action_error'),
-                        AbstractMessage::ERROR
+                        ContextualFeedbackSeverity::ERROR
                     );
                     $content .= $this->renderFlashMessages();
                 }
@@ -951,7 +953,7 @@ class ActionTask implements TaskInterface
                 $this->addMessage(
                     $this->getLanguageService()->getLL('action_notReady'),
                     $this->getLanguageService()->getLL('action_error'),
-                    AbstractMessage::ERROR
+                    ContextualFeedbackSeverity::ERROR
                 );
                 $content .= $this->renderFlashMessages();
             }
@@ -960,7 +962,7 @@ class ActionTask implements TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_lowlevelMissing'),
                 $this->getLanguageService()->getLL('action_error'),
-                AbstractMessage::ERROR
+                ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
         }
@@ -982,7 +984,7 @@ class ActionTask implements TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_notReady'),
                 $this->getLanguageService()->getLL('action_error'),
-                AbstractMessage::ERROR
+                ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
@@ -1070,8 +1072,8 @@ class ActionTask implements TaskInterface
 			'
             );
             // Setting up the context sensitive menu:
-            $this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/ContextMenu');
-            $this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/AjaxDataHandler');
+            $this->pageRenderer->loadJavaScriptModule('TYPO3/CMS/Backend/ContextMenu');
+            $this->pageRenderer->loadJavaScriptModule('TYPO3/CMS/Backend/AjaxDataHandler');
             // Begin to compile the whole page
             $content .= '<form action="' . htmlspecialchars($dblist->listURL()) . '" method="post" name="dblistForm">' . $dblist->HTMLcode . '<input type="hidden" name="cmd_table" /><input type="hidden" name="cmd" /></form>';
             // If a listing was produced, create the page footer with search form etc:
@@ -1084,7 +1086,7 @@ class ActionTask implements TaskInterface
             $this->addMessage(
                 $this->getLanguageService()->getLL('action_error-access'),
                 $this->getLanguageService()->getLL('action_error'),
-                AbstractMessage::ERROR
+                ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
         }
@@ -1098,7 +1100,7 @@ class ActionTask implements TaskInterface
      *
      * @throws \TYPO3\CMS\Core\Exception
      */
-    protected function addMessage($message, $title = '', $severity = AbstractMessage::OK)
+    protected function addMessage($message, $title = '', $severity = ContextualFeedbackSeverity::OK)
     {
         $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $message, $title, $severity);
         $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
