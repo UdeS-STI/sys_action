@@ -46,7 +46,6 @@ return [
                 'items' => [
                     [
                         'label' => '',
-                        1 => '',
                         'invertStateDisplay' => true
                     ]
                 ],
@@ -108,12 +107,6 @@ return [
             'config' => [
                 'type' => 'check',
                 'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        1 => '',
-                    ]
-                ],
             ]
         ],
         't1_copy_of_user' => [
@@ -130,12 +123,6 @@ return [
           'config' => [
             'type' => 'check',
             'renderType' => 'checkboxToggle',
-            'items' => [
-              [
-                'label' => '',
-                1 => '',
-              ]
-            ],
             'default' => 0,
           ]
         ],
