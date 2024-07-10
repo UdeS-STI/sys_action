@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace TYPO3\CMS\SysAction\Backend\ToolbarItems;
 
 /*
@@ -14,8 +17,8 @@ namespace TYPO3\CMS\SysAction\Backend\ToolbarItems;
  * The TYPO3 project - inspiring people to share!
  */
 use TYPO3\CMS\Backend\Routing\UriBuilder;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Backend\Toolbar\ToolbarItemInterface;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
@@ -33,14 +36,14 @@ class ActionToolbarItem implements ToolbarItemInterface
     /**
      * @var array
      */
-    protected $availableActions = [];
+    protected array $availableActions = [];
 
     /**
      * Render toolbar icon via Fluid
      *
      * @return string HTML
      */
-    public function getItem()
+    public function getItem(): string
     {
         return $this->getFluidTemplateObject('ToolbarItem.html')->render();
     }
@@ -50,7 +53,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return string HTML
      */
-    public function getDropDown()
+    public function getDropDown(): string
     {
         $view = $this->getFluidTemplateObject('DropDown.html');
         $view->assign('actions', $this->availableActions);
@@ -60,7 +63,7 @@ class ActionToolbarItem implements ToolbarItemInterface
     /**
      * Stores the entries for the action menu in $this->availableActions
      */
-    protected function setAvailableActions()
+    protected function setAvailableActions(): void
     {
         $actionEntries = [];
         $backendUser = $this->getBackendUser();
@@ -70,7 +73,7 @@ class ActionToolbarItem implements ToolbarItemInterface
             ->removeAll()
             ->add(GeneralUtility::makeInstance(HiddenRestriction::class))
             ->add(GeneralUtility::makeInstance(RootLevelRestriction::class, [
-                'sys_action'
+                'sys_action',
             ]));
 
         $queryBuilder
@@ -82,12 +85,11 @@ class ActionToolbarItem implements ToolbarItemInterface
         }
 
         if (!$backendUser->isAdmin()) {
-          $userGroups = $backendUser->userGroups ?? [];
-
-          $extractGroupId = function ($group){
-            return (int)$group['uid'];
-          };
-          $userGroupIds = array_map($extractGroupId, $userGroups);
+            if (empty($backendUser->userGroupsUID)) {
+                $groupList = 0;
+            } else {
+                $groupList = implode(',', $backendUser->userGroupsUID);
+            }
 
             $queryBuilder
                 ->join(
@@ -112,7 +114,7 @@ class ActionToolbarItem implements ToolbarItemInterface
                     $queryBuilder->expr()->in(
                         'be_groups.uid',
                         $queryBuilder->createNamedParameter(
-                          $userGroupIds,
+                            GeneralUtility::intExplode(',', $groupList, true),
                             Connection::PARAM_INT_ARRAY
                         )
                     )
@@ -122,7 +124,7 @@ class ActionToolbarItem implements ToolbarItemInterface
 
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $result = $queryBuilder->execute();
+        $result = $queryBuilder->executeQuery();
         while ($actionRow = $result->fetchAssociative()) {
             $actionRow['link'] = sprintf(
                 '%s&SET[mode]=tasks&SET[function]=sys_action.%s&show=%u',
@@ -141,7 +143,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return array
      */
-    public function getAdditionalAttributes()
+    public function getAdditionalAttributes(): array
     {
         return [];
     }
@@ -151,7 +153,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return bool
      */
-    public function hasDropDown()
+    public function hasDropDown(): bool
     {
         return true;
     }
@@ -161,7 +163,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return bool
      */
-    public function checkAccess()
+    public function checkAccess(): bool
     {
         $this->setAvailableActions();
         return !empty($this->availableActions);
@@ -172,7 +174,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return int
      */
-    public function getIndex()
+    public function getIndex(): int
     {
         return 35;
     }
@@ -182,7 +184,7 @@ class ActionToolbarItem implements ToolbarItemInterface
      *
      * @return BackendUserAuthentication
      */
-    protected function getBackendUser()
+    protected function getBackendUser(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
     }
@@ -199,12 +201,13 @@ class ActionToolbarItem implements ToolbarItemInterface
         $view->setLayoutRootPaths(['EXT:sys_action/Resources/Private/Layouts']);
         $view->setPartialRootPaths([
             'EXT:backend/Resources/Private/Partials/ToolbarItems',
-            'EXT:sys_action/Resources/Private/Partials'
+            'EXT:sys_action/Resources/Private/Partials',
         ]);
         $view->setTemplateRootPaths(['EXT:sys_action/Resources/Private/Templates/ToolbarItems']);
         $view->setTemplate($filename);
-
-        $view->getRequest()->setControllerExtensionName('SysAction');
+        if ($view->getRequest() != null) {
+            $view->getRequest()->setControllerExtensionName('SysAction');
+        }
         return $view;
     }
 }

@@ -18,7 +18,6 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Taskcenter\TaskInterface;
 use TYPO3\CMS\Taskcenter\Controller\TaskModuleController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
-use TYPO3\CMS\Core\Messaging\AbstractMessage;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Database\RelationHandler;
@@ -54,47 +53,37 @@ class ActionTask implements TaskInterface
     /**
      * @var TaskModuleController
      */
-    protected $taskObject;
+    protected TaskModuleController $taskObject;
 
     /**
      * All hook objects get registered here for later use
      *
      * @var array
      */
-    protected $hookObjects = [];
+    protected array $hookObjects = [];
 
     /**
      * URL to task module
      *
      * @var string
      */
-    protected $moduleUrl;
+    protected string $moduleUrl;
 
     /**
      * @var IconFactory
      */
-    protected $iconFactory;
-
-    /**
-    * @var Boolean
-    */
-    protected $isPasswordFieldHidden;
-
-    /**
-    * @var Boolean
-    */
-    protected $isEmailFieldHidden;
-
-    /**
-    * @var Boolean
-    */
-    protected $isRealNameFieldHidden;
+    protected IconFactory $iconFactory;
+    private PageRenderer $pageRenderer;
+    // Ajout UdeS
+    protected bool $isPasswordFieldHidden;
+    protected bool $isEmailFieldHidden;
+    protected bool $isRealNameFieldHidden;
 
     /**
      * Constructor
      * @param TaskModuleController $taskObject
      */
-    public function __construct(TaskModuleController $taskObject, private PageRenderer $pageRenderer)
+    public function __construct(TaskModuleController $taskObject, PageRenderer $pageRenderer)
     {
         $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         /** @var UriBuilder $uriBuilder */
@@ -105,11 +94,13 @@ class ActionTask implements TaskInterface
         foreach ($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['sys_action']['tx_sysaction_task'] ?? [] as $className) {
             $this->hookObjects[] = GeneralUtility::makeInstance($className);
         }
+        $this->pageRenderer = $pageRenderer;
 
+        // Ajout UdeS
         $extensionConfiguration = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('sys_action');
-        $this->isPasswordFieldHidden = $extensionConfiguration['isPasswordFieldHidden'];
-        $this->isEmailFieldHidden = $extensionConfiguration['isEmailFieldHidden'];
-        $this->isRealNameFieldHidden = $extensionConfiguration['isRealNameFieldHidden'];
+        $this->isPasswordFieldHidden = (bool) $extensionConfiguration['isPasswordFieldHidden'];
+        $this->isEmailFieldHidden = (bool) $extensionConfiguration['isEmailFieldHidden'];
+        $this->isRealNameFieldHidden = (bool) $extensionConfiguration['isRealNameFieldHidden'];
     }
 
     /**
@@ -117,10 +108,10 @@ class ActionTask implements TaskInterface
      *
      * @return string The task as HTML
      */
-    public function getTask()
+    public function getTask(): string
     {
         $content = '';
-        $show = (int)GeneralUtility::_GP('show');
+        $show = (int)($this->taskObject->getRequest()?->getQueryParams()['show'] ?? 0);
         foreach ($this->hookObjects as $hookObject) {
             if (method_exists($hookObject, 'getTask')) {
                 $show = $hookObject->getTask($show, $this);
@@ -128,16 +119,19 @@ class ActionTask implements TaskInterface
         }
         // If no task selected, render the menu
         if ($show == 0) {
-            $content .= $this->taskObject->description($this->getLanguageService()->getLL('sys_action'), $this->getLanguageService()->getLL('description'));
+            $content .= $this->taskObject->description(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:sys_action'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:description')
+            );
             $content .= $this->renderActionList();
         } else {
             $record = BackendUtility::getRecord('sys_action', $show);
             // If the action is not found
             if (empty($record)) {
-                $this->addMessage(
-                    $this->getLanguageService()->getLL('action_error-not-found'),
-                    $this->getLanguageService()->getLL('action_error'),
-                  ContextualFeedbackSeverity::ERROR
+                $this->addFlashMessage(
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error-not-found'),
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
+                    ContextualFeedbackSeverity::ERROR
                 );
             } else {
                 // Render the task
@@ -146,7 +140,7 @@ class ActionTask implements TaskInterface
                 switch ($record['type']) {
                     case 1:
                         $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
-                        $pageRenderer->loadRequireJsModule('TYPO3/CMS/SysAction/ActionTask');
+                        #$pageRenderer->loadRequireJsModule('TYPO3/CMS/SysAction/ActionTask');
                         $content .= $this->viewNewBackendUser($record);
                         break;
                     case 2:
@@ -162,10 +156,10 @@ class ActionTask implements TaskInterface
                         $content .= $this->viewNewRecord($record);
                         break;
                     default:
-                        $this->addMessage(
-                            $this->getLanguageService()->getLL('action_noType'),
-                            $this->getLanguageService()->getLL('action_error'),
-                          ContextualFeedbackSeverity::ERROR
+                        $this->addFlashMessage(
+                            $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_noType'),
+                            $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
+                            ContextualFeedbackSeverity::ERROR
                         );
                         $content .= $this->renderFlashMessages();
                 }
@@ -179,16 +173,17 @@ class ActionTask implements TaskInterface
      *
      * @return string Overview as HTML
      */
-    public function getOverview()
+    public function getOverview(): string
     {
-        $content = '<p>' . htmlspecialchars($this->getLanguageService()->getLL('description')) . '</p>';
+        $show = $this->taskObject->getRequest()?->getQueryParams()['be_users_uid'] ?? '';
+        $content = '<p>' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:description')) . '</p>';
         // Get the actions
         $actionList = $this->getActions();
         if (!empty($actionList)) {
             $items = '';
             // Render a single action menu item
             foreach ($actionList as $action) {
-                $active = GeneralUtility::_GP('show') === $action['uid'] ? 'active' : '';
+                $active = $show === $action['uid'] ? 'active' : '';
                 $items .= '<a class="list-group-item ' . $active . '" href="' . $action['link'] . '" title="' . htmlspecialchars($action['description']) . '">' . htmlspecialchars($action['title']) . '</a>';
             }
             $content .= '<div class="list-group">' . $items . '</div>';
@@ -202,7 +197,7 @@ class ActionTask implements TaskInterface
      *
      * @return array Array holding every needed information of a sys_action
      */
-    protected function getActions()
+    protected function getActions(): array
     {
         $backendUser = $this->getBackendUser();
         $actionList = [];
@@ -221,12 +216,11 @@ class ActionTask implements TaskInterface
 
         // Editors can only see the actions which are assigned to a usergroup they belong to
         if (!$backendUser->isAdmin()) {
-          $userGroups = $backendUser->userGroups ?? [];
-
-          $extractGroupId = function ($group){
-            return (int)$group['uid'];
-          };
-          $userGroupIds = array_map($extractGroupId, $userGroups);
+            if (empty($backendUser->userGroupsUID)) {
+                $groupList = 0;
+            } else {
+                $groupList = implode(',', $backendUser->userGroupsUID);
+            }
 
             $queryBuilder->getRestrictions()
                 ->add(GeneralUtility::makeInstance(HiddenRestriction::class));
@@ -254,16 +248,16 @@ class ActionTask implements TaskInterface
                     $queryBuilder->expr()->in(
                         'be_groups.uid',
                         $queryBuilder->createNamedParameter(
-                          $userGroupIds,
+                            GeneralUtility::intExplode(',', $groupList, true),
                             Connection::PARAM_INT_ARRAY
                         )
                     )
                 )
-                ->groupBy('sys_action.uid', 'sys_action.title', 'sys_action.description');
+                ->groupBy('sys_action.uid', 'sys_action.title', 'sys_action.description'); // Ajout UdeS
         }
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $queryResult = $queryBuilder->execute();
+        $queryResult = $queryBuilder->executeQuery();
         while ($actionRow = $queryResult->fetchAssociative()) {
             $editActionLink = '';
 
@@ -275,11 +269,11 @@ class ActionTask implements TaskInterface
                     'record_edit',
                     [
                         $uidEditArgument => 'edit',
-                        'returnUrl' => GeneralUtility::getIndpEnv('REQUEST_URI')
+                        'returnUrl' => GeneralUtility::getIndpEnv('REQUEST_URI'),
                     ]
                 );
 
-                $title = $this->getLanguageService()->getLL('edit-sys_action');
+                $title = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:edit-sys_action');
                 $icon = $this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL)->render();
                 $editActionLink = '<a class="btn btn-default btn-sm" href="' . htmlspecialchars($link) . '" title="' . htmlspecialchars($title) . '">';
                 $editActionLink .= $icon . ' ' . htmlspecialchars($title) . '</a>';
@@ -293,12 +287,12 @@ class ActionTask implements TaskInterface
                     $actionRow['description']
                         ? '<p>' . nl2br(htmlspecialchars($actionRow['description'])) . '</p>'
                         : ''
-                    ) . $editActionLink,
+                ) . $editActionLink,
                 'link' => $this->moduleUrl
                     . '&SET[function]=sys_action.'
                     . self::class
                     . '&show='
-                    . (int)$actionRow['uid']
+                    . (int)$actionRow['uid'],
             ];
         }
 
@@ -310,7 +304,7 @@ class ActionTask implements TaskInterface
      *
      * @return string List of sys_actions as HTML
      */
-    protected function renderActionList()
+    protected function renderActionList(): string
     {
         $content = '';
         // Get the sys_action records
@@ -319,10 +313,10 @@ class ActionTask implements TaskInterface
         if (!empty($actionList)) {
             $content .= $this->taskObject->renderListMenu($actionList);
         } else {
-            $this->addMessage(
-                $this->getLanguageService()->getLL('action_not-found-description'),
-                $this->getLanguageService()->getLL('action_not-found'),
-              ContextualFeedbackSeverity::INFO
+            $this->addFlashMessage(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_not-found-description'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_not-found'),
+                ContextualFeedbackSeverity::INFO
             );
         }
         // Admin users can create a new action
@@ -333,11 +327,11 @@ class ActionTask implements TaskInterface
                 'record_edit',
                 [
                     'edit[sys_action][0]' => 'new',
-                    'returnUrl' => $this->moduleUrl
+                    'returnUrl' => $this->moduleUrl,
                 ]
             );
 
-            $title = $this->getLanguageService()->getLL('new-sys_action');
+            $title = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:new-sys_action');
             $content .= '<p>' .
                 '<a class="btn btn-default" href="' . htmlspecialchars($link) . '" title="' . htmlspecialchars($title) . '">' .
                 $this->iconFactory->getIcon('actions-add', Icon::SIZE_SMALL)->render() . ' ' . htmlspecialchars($title) .
@@ -352,39 +346,41 @@ class ActionTask implements TaskInterface
      * @param array $record sys_action record
      * @return string form to create a new user
      */
-    protected function viewNewBackendUser($record)
+    protected function viewNewBackendUser(array $record): string
     {
         $content = '';
         $beRec = BackendUtility::getRecord('be_users', (int)$record['t1_copy_of_user']);
         // A record is need which is used as copy for the new user
         if (!is_array($beRec)) {
-            $this->addMessage(
-                $this->getLanguageService()->getLL('action_notReady'),
-                $this->getLanguageService()->getLL('action_error'),
-              ContextualFeedbackSeverity::ERROR
+            $this->addFlashMessage(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_notReady'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
+                ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
         }
-        $vars = GeneralUtility::_POST('data');
+        $vars = $this->taskObject->getRequest()?->getParsedBody()['data'] ?? [];
+
         $key = 'NEW';
-        if (isset($vars['sent']) && $vars['sent'] == 1) {
+        if ((int)($vars['sent'] ?? 0) === 1) {
             $errors = [];
             // Basic error checks
             if (!empty($vars['email']) && !GeneralUtility::validEmail($vars['email'])) {
-                $errors[] = $this->getLanguageService()->getLL('error-wrong-email');
+                $errors[] = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:error-wrong-email');
             }
             if (empty($vars['username'])) {
-                $errors[] = $this->getLanguageService()->getLL('error-username-empty');
+                $errors[] = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:error-username-empty');
             }
             if ($vars['key'] === 'NEW' && empty($vars['password']) && !$this->isPasswordFieldHidden) {
-                $errors[] = $this->getLanguageService()->getLL('error-password-empty');
+                $errors[] = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:error-password-empty');
             }
-            if ($vars['key'] !== 'NEW' && !$this->isCreatedByUser($vars['key'], $record)) {
-                $errors[] = $this->getLanguageService()->getLL('error-wrong-user');
+            if ($vars['key'] !== 'NEW' && !$this->isCreatedByUser((int)$vars['key'], $record)) {
+                $errors[] = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:error-wrong-user');
             }
+            // Ajout UdeS
             if ($vars['key'] === 'NEW' && $this->isUserExists($record, $vars) ) {
-                $errors[] = $this->getLanguageService()->getLL('error-user-exists');
+                $errors[] = $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:error-user-exists');
             }
             foreach ($this->hookObjects as $hookObject) {
                 if (method_exists($hookObject, 'viewNewBackendUser_Error')) {
@@ -393,9 +389,9 @@ class ActionTask implements TaskInterface
             }
             // Show errors if there are any
             if (!empty($errors)) {
-                $this->addMessage(
+                $this->addFlashMessage(
                     implode(LF, $errors),
-                    $this->getLanguageService()->getLL('action_error'),
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                     ContextualFeedbackSeverity::ERROR
                 );
             } else {
@@ -403,36 +399,40 @@ class ActionTask implements TaskInterface
                 $key = $this->saveNewBackendUser($record, $vars);
                 // Success message
                 $message = $vars['key'] === 'NEW'
-                    ? $this->getLanguageService()->getLL('success-user-created')
-                    : $this->getLanguageService()->getLL('success-user-updated');
-                $this->addMessage(
+                    ? $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:success-user-created')
+                    : $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:success-user-updated');
+                $this->addFlashMessage(
                     $message,
-                    $this->getLanguageService()->getLL('success')
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:success')
                 );
             }
             $content .= $this->renderFlashMessages();
         }
+
+        $beUsersUid = (int)($this->taskObject->getRequest()?->getQueryParams()['be_users_uid'] ?? 0);
         // Load BE user to edit
-        if ((int)GeneralUtility::_GP('be_users_uid') > 0) {
-            $tmpUserId = (int)GeneralUtility::_GP('be_users_uid');
+        if ($beUsersUid > 0) {
             // Check if the selected user is created by the current user
-            $rawRecord = $this->isCreatedByUser($tmpUserId, $record);
+            $rawRecord = $this->isCreatedByUser($beUsersUid, $record);
+            //@TODO
             if ($rawRecord) {
                 // Delete user
-                if (GeneralUtility::_GP('delete') == 1) {
-                    $this->deleteUser($tmpUserId, $record['uid']);
+                if ((int)($this->taskObject->getRequest()?->getQueryParams()['delete'] ?? 0) == 1) {
+                    $this->deleteUser($beUsersUid, $record['uid']);
                 }
-                $key = $tmpUserId;
+                $key = $beUsersUid;
                 $vars = $rawRecord;
             }
         }
 
+        $actionButtonLabelKey = $key === 'NEW' ? 'action_Create' : 'action_Update';
         $content .= '<form action="" class="panel panel-default" method="post" enctype="multipart/form-data">
                         <fieldset class="form-section">
-                            <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_generalFields')) . '</h4>
+                            <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_t1_legend_generalFields')) . '</h4>
+                          <!-- Ajout Udes (Display none) -->
                             <div style="display:none" class="form-group">
                                 <label for="field_disable">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.disable')) . '</label>
-                                <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ((isset($vars['disable']) && $vars['disable'] == 1) ? ' checked="checked" ' : '') . ' />
+                                <input type="checkbox" id="field_disable" name="data[disable]" value="1" class="checkbox" ' . ((int)($vars['disable'] ?? 0) === 1 ? ' checked="checked" ' : '') . ' />
                             </div>
                             <div class="form-group" ' . $this->hiddenField($this->isRealNameFieldHidden) . '>
                                 <label for="field_realname">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.name')) . '</label>
@@ -452,7 +452,7 @@ class ActionTask implements TaskInterface
                             </div>
                         </fieldset>
                         <fieldset class="form-section">
-                            <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_legend_configuration')) . '</h4>
+                            <h4 class="form-section-headline">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_t1_legend_configuration')) . '</h4>
                             <div class="form-group">
                                 <label for="field_usergroup">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.usergroup')) . '</label>
                                 <div id="field_usergroup">
@@ -462,11 +462,11 @@ class ActionTask implements TaskInterface
                             <div class="form-group">
                                 <input type="hidden" name="data[key]" value="' . $key . '" />
                                 <input type="hidden" name="data[sent]" value="1" />
-                                <input class="btn btn-default" type="submit" value="' . htmlspecialchars($this->getLanguageService()->getLL($key === 'NEW' ? 'action_Create' : 'action_Update')) . '" />
+                                <input class="btn btn-default" type="submit" value="' . htmlspecialchars($this->getLanguageService()->sL("LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:{$actionButtonLabelKey}")) . '" />
                             </div>
                         </fieldset>
                     </form>';
-        $content .= $this->getCreatedUsers($record, $key);
+        $content .= $this->getCreatedUsers($record, (string)$key);
         return $content;
     }
 
@@ -476,16 +476,15 @@ class ActionTask implements TaskInterface
      * @param int $userId Id of the BE user
      * @param int $actionId Id of the action
      */
-    protected function deleteUser($userId, $actionId)
+    protected function deleteUser(int $userId, int $actionId)
     {
         GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('be_users')->update(
             'be_users',
             ['deleted' => 1, 'tstamp' => (int)GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('date', 'timestamp')],
             ['uid' => (int)$userId]
         );
-
         // redirect to the original task
-        HttpUtility::redirect($this->moduleUrl . '&show=' . (int)$actionId);
+        $this->taskObject->getResponseFactory()->createResponse(303)->withAddedHeader('location', $this->moduleUrl . '&show=' . (int)$actionId);
     }
 
     /**
@@ -495,15 +494,11 @@ class ActionTask implements TaskInterface
      * @param array $action sys_action record.
      * @return mixed The record of the BE user if found, otherwise FALSE
      */
-    protected function isCreatedByUser($id, $action)
+    protected function isCreatedByUser(int $id, array $action)
     {
-        $onlyCreatedByCurrentUser = '';
-
-        if(!$action['t1_all_created_users_visible']) {
-          $onlyCreatedByCurrentUser = 'AND cruser_id=' . $this->getBackendUser()->user['uid'];
-        }
-
-        $record = BackendUtility::getRecord('be_users', $id, '*', $onlyCreatedByCurrentUser . ' AND createdByAction=' . $action['uid']);
+        //@TODO https://docs.typo3.org/c/typo3/cms-core/main/en-us/Changelog/12.0/Breaking-98024-TCA-option-cruserid-removed.html
+        //$record = BackendUtility::getRecord('be_users', $id, '*', ' AND cruser_id=' . $this->getBackendUser()->user['uid'] . ' AND createdByAction=' . $action['uid']);
+        $record = BackendUtility::getRecord('be_users', $id, '*', ' AND createdByAction=' . $action['uid']);
         if (is_array($record)) {
             return $record;
         }
@@ -514,10 +509,10 @@ class ActionTask implements TaskInterface
      * Render all users who are created by the current BE user including a link to edit the record
      *
      * @param array $action sys_action record.
-     * @param int $selectedUser Id of a selected user
+     * @param string $selectedUser Id of a selected user
      * @return string html list of users
      */
-    protected function getCreatedUsers($action, $selectedUser)
+    protected function getCreatedUsers(array $action, string $selectedUser): string
     {
         $content = '';
         $userList = [];
@@ -529,20 +524,10 @@ class ActionTask implements TaskInterface
             ->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
 
-        $onlyCreatedByCurrentUser = '';
-
-        if(!$action['t1_all_created_users_visible']) {
-          $onlyCreatedByCurrentUser = $queryBuilder->expr()->eq(
-            'cruser_id',
-            $queryBuilder->createNamedParameter($this->getBackendUser()->user['uid'], \PDO::PARAM_INT)
-          );
-        }
-
         $res = $queryBuilder
             ->select('*')
             ->from('be_users')
             ->where(
-              $onlyCreatedByCurrentUser,
                 $queryBuilder->expr()->eq(
                     'createdByAction',
                     $queryBuilder->createNamedParameter($action['uid'], \PDO::PARAM_INT)
@@ -551,7 +536,7 @@ class ActionTask implements TaskInterface
 
         // Render the user records
         while ($row = $res->fetchAssociative()) {
-            $icon = '<span title="' . htmlspecialchars('uid=' . $row['uid']) . '">' . $this->iconFactory->getIconForRecord('be_users', $row, Icon::SIZE_SMALL)->render() . '</span>';
+            $icon = '<span title="' . htmlspecialchars('uid=' . $row['uid']) . '">' . $this->iconFactory->getIconForRecord('be_users', $row, Icon::SIZE_SMALL)->render() . '</span> ';
             $line = $icon . $this->action_linkUserName($row['username'], $row['realName'], $action['uid'], $row['uid']);
             // Selected user
             if ($row['uid'] == $selectedUser) {
@@ -564,7 +549,7 @@ class ActionTask implements TaskInterface
         if (!empty($userList)) {
             $content .= '<div class="panel panel-default">';
             $content .= '<div class="panel-heading">';
-            $content .= '<h3 class="panel-title">' . htmlspecialchars($this->getLanguageService()->getLL('action_t1_listOfUsers')) . '</h3>';
+            $content .= '<h3 class="panel-title">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_t1_listOfUsers')) . '</h3>';
             $content .= '</div>';
             $content .= '<ul class="list-group">' . implode($userList) . '</ul>';
             $content .= '</div>';
@@ -581,13 +566,18 @@ class ActionTask implements TaskInterface
      * @param int $userId Id of the user
      * @return string html link
      */
-    protected function action_linkUserName($username, $realName, $sysActionUid, $userId)
+    protected function action_linkUserName(
+        string $username,
+        string $realName,
+        int $sysActionUid,
+        int $userId): string
     {
         if (!empty($realName)) {
             $username .= ' (' . $realName . ')';
         }
         // Link to update the user record
         $href = $this->moduleUrl . '&SET[function]=sys_action.TYPO3\\CMS\\SysAction\\ActionTask&show=' . (int)$sysActionUid . '&be_users_uid=' . (int)$userId;
+        // Ajout UdeS
         return '<a href="' . htmlspecialchars( $href) . '">' . htmlspecialchars( $username) . '</a>';
     }
 
@@ -598,21 +588,22 @@ class ActionTask implements TaskInterface
      * @param array $vars POST vars
      * @return int Id of the new/updated user
      */
-    protected function saveNewBackendUser($record, $vars)
+    protected function saveNewBackendUser(array $record, array $vars): int
     {
         // Check if the usergroup is allowed
         $vars['usergroup'] = $this->fixUserGroup($vars['usergroup'] ?? [], $record);
         $key = $vars['key'];
         $vars['password'] = trim($vars['password']);
         // Check if md5 is used as password encryption
-        if ($vars['password'] !== '' && strpos($GLOBALS['TCA']['be_users']['columns']['password']['config']['eval'], 'md5') !== false) {
+
+        //@TODO https://docs.typo3.org/c/typo3/cms-core/main/en-us/Changelog/12.0/Feature-97388-ConfigurablePasswordPolicies.html
+        if ($vars['password'] !== '' && strpos($GLOBALS['TCA']['be_users']['columns']['password']['config']['eval'] ?? '', 'md5') !== false) {
             $vars['password'] = md5($vars['password']);
         }
         $data = '';
         $newUserId = 0;
         if ($key === 'NEW') {
             $beRec = BackendUtility::getRecord('be_users', (int)$record['t1_copy_of_user']);
-
             if (is_array($beRec)) {
                 $data = [];
                 $data['be_users'][$key] = $beRec;
@@ -622,14 +613,13 @@ class ActionTask implements TaskInterface
                 $data['be_users'][$key]['email'] = $vars['email'];
                 $data['be_users'][$key]['disable'] = (int)($vars['disable'] ?? 0);
                 $data['be_users'][$key]['admin'] = 0;
-                $data['be_users'][$key]['usergroup'] = $vars['usergroup'];
+                $data['be_users'][$key]['usergroup'] = $vars['usergroup'] ?? '';
                 $data['be_users'][$key]['createdByAction'] = $record['uid'];
             }
         } else {
             // Check ownership
             $beRec = BackendUtility::getRecord('be_users', (int)$key);
-            $isCreatedByCurrentUser = $beRec['cruser_id'] == $this->getBackendUser()->user['uid'];
-            if (is_array($beRec) && ($isCreatedByCurrentUser || $record['t1_all_created_users_visible'])) {
+            if (is_array($beRec) && $record['t1_all_created_users_visible']) {
                 $data = [];
                 $data['be_users'][$key]['username'] = $this->fixUsername($vars['username'], $record['t1_userprefix']);
                 if ($vars['password'] !== '') {
@@ -647,9 +637,9 @@ class ActionTask implements TaskInterface
         if (is_array($data)) {
             $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
             $dataHandler->start($data, [], $this->getBackendUser());
-            $dataHandler->admin = 1;
+            $dataHandler->admin = true;
             $dataHandler->process_datamap();
-            $newUserId = (int)($dataHandler->substNEWwithIDs['NEW'] ?? 0);
+            $newUserId = (int)($dataHandler->substNEWwithIDs['NEW'] ?? false);
             if ($newUserId) {
                 // Create
                 $this->action_createDir($newUserId);
@@ -657,7 +647,7 @@ class ActionTask implements TaskInterface
                 // Update
                 $newUserId = (int)$key;
             }
-            unset($tce);
+            unset($dataHandler);
         }
         return $newUserId;
     }
@@ -669,7 +659,7 @@ class ActionTask implements TaskInterface
      * @param string $prefix Prefix
      * @return string Combined username
      */
-    protected function fixUsername($username, $prefix)
+    protected function fixUsername(string $username, string $prefix): string
     {
         $prefix = trim($prefix);
         if ($prefix !== '' && strpos($username, $prefix) === 0) {
@@ -685,12 +675,12 @@ class ActionTask implements TaskInterface
      * @param array $actionRecord The action record
      * @return array Cleaned array
      */
-    protected function fixUserGroup($appliedUsergroups, $actionRecord)
+    protected function fixUserGroup(array $appliedUsergroups, array $actionRecord): array
     {
         if (is_array($appliedUsergroups)) {
             $cleanGroupList = [];
             // Create an array from the allowed usergroups using the uid as key
-            $allowedUsergroups = array_flip(explode(',', $actionRecord['t1_allowed_groups']));
+            $allowedUsergroups = array_flip(explode(',', $actionRecord['t1_allowed_groups'] ?? ''));
             // Walk through the array and check every uid if it is under the allowed ines
             foreach ($appliedUsergroups as $group) {
                 if (isset($allowedUsergroups[$group])) {
@@ -726,27 +716,28 @@ class ActionTask implements TaskInterface
      *
      * @param int $uid Id of the user record
      */
-    protected function action_createDir($uid)
+    protected function action_createDir(int $uid): void
     {
         $path = $this->action_getUserMainDir();
-        if ($path) {
+        if ($path !== null) {
             GeneralUtility::mkdir($path . $uid);
             GeneralUtility::mkdir($path . $uid . '/_temp_/');
         }
     }
 
-    /**
-     * Get the path to the user home directory which is set in the localconf.php
-     *
-     * @return string Path
-     */
-    protected function action_getUserMainDir()
+  /**
+   * Get the path to the user home directory which is set in the localconf.php
+   *
+   * @return string|null Path
+   */
+    protected function action_getUserMainDir(): ?string
     {
-        $path = $GLOBALS['TYPO3_CONF_VARS']['BE']['userHomePath'];
+        $path = $GLOBALS['TYPO3_CONF_VARS']['BE']['userHomePath'] ?? null;
         // If path is set and a valid directory
-        if ($path && @is_dir($path) && $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath'] && str_starts_with($path, $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath']) && str_ends_with($path, '/')) {
+        if ($path && @is_dir($path) && $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath'] && \str_starts_with($path, $GLOBALS['TYPO3_CONF_VARS']['BE']['lockRootPath']) && str_ends_with($path, '/')) {
             return $path;
         }
+        return null;
     }
 
     /**
@@ -756,14 +747,14 @@ class ActionTask implements TaskInterface
      * @param array $vars Selected be_user record
      * @return string Rendered user groups
      */
-    protected function getUsergroups($record, $vars)
+    protected function getUsergroups(array $record, array $vars): string
     {
         $content = '';
         // Do nothing if no groups are allowed
         if (empty($record['t1_allowed_groups'])) {
             return $content;
         }
-
+        // Ajout UdeS
         $adminUserGroups = array_keys($GLOBALS['BE_USER']->userGroups);
         $allowedGroupsForSysAction = GeneralUtility::trimExplode(',', $record['t1_allowed_groups'], true);
 
@@ -815,7 +806,7 @@ class ActionTask implements TaskInterface
      *
      * @param array $record sys_action record
      */
-    protected function viewNewRecord($record)
+    protected function viewNewRecord(array $record)
     {
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
@@ -823,10 +814,11 @@ class ActionTask implements TaskInterface
             'record_edit',
             [
                 'edit[' . $record['t3_tables'] . '][' . (int)$record['t3_listPid'] . ']' => 'new',
-                'returnUrl' => $this->moduleUrl
+                'returnUrl' => $this->moduleUrl,
             ]
         );
-        HttpUtility::redirect($link);
+
+        $this->taskObject->getResponseFactory()->createResponse(303)->withAddedHeader('location', $link);
     }
 
     /**
@@ -835,7 +827,7 @@ class ActionTask implements TaskInterface
      * @param array $record sys_action record
      * @return string list of records
      */
-    protected function viewEditRecord($record)
+    protected function viewEditRecord(array $record): string
     {
         $content = '';
         $actionList = [];
@@ -863,7 +855,7 @@ class ActionTask implements TaskInterface
                 'record_edit',
                 [
                     'edit[' . $el['table'] . '][' . $el['id'] . ']' => 'edit',
-                    'returnUrl' => $this->moduleUrl
+                    'returnUrl' => $this->moduleUrl,
                 ]
             );
             $actionList[$el['id']] = [
@@ -872,7 +864,7 @@ class ActionTask implements TaskInterface
                 'description' => BackendUtility::getRecordTitle($el['table'], $dbAnalysis->results[$el['table']][$el['id']]),
                 'descriptionHtml' => $description,
                 'link' => $link,
-                'icon' => '<span title="' . htmlspecialchars($path) . '">' . $this->iconFactory->getIconForRecord($el['table'], $dbAnalysis->results[$el['table']][$el['id']], Icon::SIZE_SMALL)->render() . '</span>'
+                'icon' => '<span title="' . htmlspecialchars($path) . '">' . $this->iconFactory->getIconForRecord($el['table'], $dbAnalysis->results[$el['table']][$el['id']], Icon::SIZE_SMALL)->render() . '</span>',
             ];
         }
         // Render the record list
@@ -886,18 +878,20 @@ class ActionTask implements TaskInterface
      * @param array $record sys_action record
      * @return string Result of the query
      */
-    protected function viewSqlQuery($record)
+    protected function viewSqlQuery(array $record): string
     {
         $content = '';
         if (ExtensionManagementUtility::isLoaded('lowlevel')) {
-            $sql_query = unserialize($record['t2_data']);
+            $sql_query = unserialize($record['t2_data'] ?? '');
             if (!is_array($sql_query) || is_array($sql_query) && stripos(trim($sql_query['qSelect']), 'SELECT') === 0) {
                 $actionContent = '';
-                $type = $sql_query['qC']['search_query_makeQuery'];
-                if ($sql_query['qC']['labels_noprefix'] === 'on') {
-                    $this->taskObject->MOD_SETTINGS['labels_noprefix'] = 'on';
+                $type = $sql_query['qC']['search_query_makeQuery'] ?? '';
+                if (($sql_query['qC']['labels_noprefix'] ?? '') === 'on') {
+                    $modSettings = $this->taskObject->getModSettings();
+                    $modSettings['labels_noprefix'] = 'on';
+                    $this->taskObject->setModSettings($modSettings);
                 }
-                $sqlQuery = $sql_query['qSelect'];
+                $sqlQuery = $sql_query['qSelect'] ?? false;
                 $queryIsEmpty = false;
                 if ($sqlQuery) {
                     try {
@@ -905,28 +899,35 @@ class ActionTask implements TaskInterface
                             ->getConnectionForTable($sql_query['qC']['queryTable'])
                             ->executeQuery($sqlQuery)->fetchAllAssociative();
                         // Additional configuration
-                        $this->taskObject->MOD_SETTINGS['search_result_labels'] = $sql_query['qC']['search_result_labels'];
-                        $this->taskObject->MOD_SETTINGS['queryFields'] = $sql_query['qC']['queryFields'];
-
-                        $fullsearch = GeneralUtility::makeInstance(QueryView::class, $GLOBALS['SOBE']->MOD_SETTINGS);
-                        $fullsearch->noDownloadB = 1;
-                        $fullsearch->formW = 48;
+                        $modSettings = $this->taskObject->getModSettings();
+                        $modSettings['search_result_labels'] = $sql_query['qC']['search_result_labels'];
+                        $modSettings['queryFields'] = $sql_query['qC']['queryFields'];
+                        $this->taskObject->setModSettings($modSettings);
+                        $fullsearch = GeneralUtility::makeInstance(
+                            DatabaseIntegrityController::class,
+                            $this->iconFactory,
+                            GeneralUtility::makeInstance(UriBuilder::class),
+                            GeneralUtility::makeInstance(ModuleTemplateFactory::class),
+                            $this->taskObject->getModSettings());
+                        //$fullsearch->noDownloadB = 1; //@TODO
+                        /* @TODO
                         $cP = $fullsearch->getQueryResultCode($type, $dataRows, $sql_query['qC']['queryTable']);
                         $actionContent = $cP['content'];
                         // If the result is rendered as csv or xml, show a download link
                         if ($type === 'csv' || $type === 'xml') {
                             $actionContent .= '<a href="' . htmlspecialchars(GeneralUtility::getIndpEnv('REQUEST_URI') . '&download_file=1') . '">'
-                                . '<strong>' . htmlspecialchars($this->getLanguageService()->getLL('action_download_file')) . '</strong></a>';
+                                . '<strong>' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_download_file')) . '</strong></a>';
                         }
-                    } catch (\Exception $e) {
+                        */
+                    } catch (DBALException $e) {
                         $actionContent .= $e->getMessage();
                     }
                 } else {
                     // Query is empty (not built)
                     $queryIsEmpty = true;
-                    $this->addMessage(
-                        $this->getLanguageService()->getLL('action_emptyQuery'),
-                        $this->getLanguageService()->getLL('action_error'),
+                    $this->addFlashMessage(
+                        $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_emptyQuery'),
+                        $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                         ContextualFeedbackSeverity::ERROR
                     );
                     $content .= $this->renderFlashMessages();
@@ -938,30 +939,29 @@ class ActionTask implements TaskInterface
                     }
                     /** @var UriBuilder $uriBuilder */
                     $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-                    $actionContent .= '<a title="' . htmlspecialchars($this->getLanguageService()->getLL('action_editQuery')) . '" class="btn btn-default" href="'
+                    $actionContent .= '<a title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_editQuery')) . '" class="btn btn-default" href="'
                         . htmlspecialchars((string)$uriBuilder->buildUriFromRoute('system_dbint')
                             . '&id=' . '&SET[function]=search' . '&SET[search]=query'
                             . '&storeControl[STORE]=-' . $record['uid'] . '&storeControl[LOAD]=1')
                         . '">'
                         . $this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL)->render() . ' '
-                        . $this->getLanguageService()->getLL(($queryIsEmpty ? 'action_createQuery'
-                        : 'action_editQuery')) . '</a>';
+                        . $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:' . $queryIsEmpty ? 'action_createQuery' : 'action_editQuery') . '</a>';
                 }
-                $content .= '<h2>' . htmlspecialchars($this->getLanguageService()->getLL('action_t2_result')) . '</h2>' . $actionContent;
+                $content .= '<h2>' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_t2_result')) . '</h2>' . $actionContent;
             } else {
                 // Query is not configured
-                $this->addMessage(
-                    $this->getLanguageService()->getLL('action_notReady'),
-                    $this->getLanguageService()->getLL('action_error'),
+                $this->addFlashMessage(
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_notReady'),
+                    $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                     ContextualFeedbackSeverity::ERROR
                 );
                 $content .= $this->renderFlashMessages();
             }
         } else {
             // Required sysext lowlevel is not installed
-            $this->addMessage(
-                $this->getLanguageService()->getLL('action_lowlevelMissing'),
-                $this->getLanguageService()->getLL('action_error'),
+            $this->addFlashMessage(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_lowlevelMissing'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                 ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
@@ -975,117 +975,78 @@ class ActionTask implements TaskInterface
      * @param array $record sys_action record
      * @return string list of records
      */
-    protected function viewRecordList($record)
+    protected function viewRecordList(array $record): string
     {
         $content = '';
-        $this->id = (int)$record['t3_listPid'];
-        $this->table = $record['t3_tables'];
-        if ($this->id == 0) {
-            $this->addMessage(
-                $this->getLanguageService()->getLL('action_notReady'),
-                $this->getLanguageService()->getLL('action_error'),
+        $id = (int)$record['t3_listPid'];
+        $table = $record['t3_tables'];
+        if ($id == 0) {
+            $this->addFlashMessage(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_notReady'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                 ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
             return $content;
         }
         // Loading current page record and checking access:
-        $this->pageinfo = BackendUtility::readPageAccess(
-            $this->id,
+        $pageinfo = BackendUtility::readPageAccess(
+            $id,
             $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW)
         );
-        $access = is_array($this->pageinfo);
+        $access = is_array($pageinfo);
+
+        $pagePermissions = new Permission($this->getBackendUser()->calcPerms($pageinfo));
+        $userCanEditPage = $pagePermissions->editPagePermissionIsGranted() && $id > 0 && ($this->getBackendUser()->isAdmin() || (int)$pageinfo['editlock'] === 0);
+        $pageActionsInstruction = JavaScriptModuleInstruction::forRequireJS('TYPO3/CMS/Backend/PageActions');
+        if ($userCanEditPage) {
+            $pageActionsInstruction->invoke('setPageId', $id);
+        }
+        $this->pageRenderer->getJavaScriptRenderer()->addJavaScriptModuleInstruction($pageActionsInstruction);
+
         // If there is access to the page, then render the list contents and set up the document template object:
         if ($access) {
+            $this->getLanguageService()->includeLLFile('EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Recordlist/Recordlist');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Recordlist/RecordDownloadButton');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Recordlist/ClearCache');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Recordlist/RecordSearch');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/AjaxDataHandler');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/ColumnSelectorButton');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/MultiRecordSelection');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/ClipboardPanel');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/NewContentElementWizardButton');
+            $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/Element/ImmediateActionElement');
+            #$this->pageRenderer->loadRequireJsModule('TYPO3/CMS/Backend/ContextMenu');
+
             // Initialize the dblist object:
             $dblist = GeneralUtility::makeInstance(ActionList::class);
-            $dblist->script = GeneralUtility::getIndpEnv('REQUEST_URI');
-            $dblist->calcPerms = $this->getBackendUser()->calcPerms($this->pageinfo);
-            $dblist->thumbs = $this->getBackendUser()->uc['thumbnailsByDefault'];
-            $dblist->allFields = 1;
-            $dblist->showClipboard = 0;
-            $dblist->disableSingleTableView = 1;
-            $dblist->pageRow = $this->pageinfo;
-            $dblist->counter++;
-            $dblist->MOD_MENU = ['bigControlPanel' => '', 'clipBoard' => ''];
-            $dblist->modTSconfig = $this->taskObject->modTSconfig;
-            $dblist->dontShowClipControlPanels = (!$this->taskObject->MOD_SETTINGS['bigControlPanel'] && $dblist->clipObj->current === 'normal' && !$this->modTSconfig['properties']['showClipControlPanelsDespiteOfCMlayers']);
+            $dblist->setRequest($this->taskObject->getRequest());
+            $dblist->calcPerms = $pagePermissions;
+//            $dblist->thumbs = $this->getBackendUser()->uc['thumbnailsByDefault'];
+//            $dblist->allFields = 1;
+//            $dblist->showClipboard = 0;
+            $dblist->disableSingleTableView = true;
+            $dblist->pageRow = $pageinfo;
+//            $dblist->counter++;
+//            $dblist->MOD_MENU = ['bigControlPanel' => '', 'clipBoard' => ''];
+//            $dblist->modTSconfig = $this->taskObject->modTSconfig;
+//            $dblist->dontShowClipControlPanels = (!$this->taskObject->MOD_SETTINGS['bigControlPanel'] && $dblist->clipObj->current === 'normal' && !$this->modTSconfig['properties']['showClipControlPanelsDespiteOfCMlayers']);
             // Initialize the listing object, dblist, for rendering the list:
-            $this->pointer = MathUtility::forceIntegerInRange(GeneralUtility::_GP('pointer'), 0, 100000);
-            $dblist->start($this->id, $this->table, $this->pointer);
-            $dblist->setDispFields();
+            $pointer = MathUtility::forceIntegerInRange((int)($this->taskObject->getRequest()?->getQueryParams()['pointer'] ?? 0), 0, 100000);
+            $dblist->start($id, $table, $pointer);
+            //$dblist->setDispFields(); //@TODO
             // Render the list of tables:
-            $dblist->generateList();
-            /** @var UriBuilder $uriBuilder */
-            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            // Add JavaScript functions to the page:
-            $this->taskObject->getModuleTemplate()->addJavaScriptCode(
-                'ActionTaskInlineJavascript',
-                '
+            $dblistContent = $dblist->generateList();
 
-				function jumpExt(URL,anchor) {
-					var anc = anchor?anchor:"";
-					window.location.href = URL+(T3_THIS_LOCATION?"&returnUrl="+T3_THIS_LOCATION:"")+anc;
-					return false;
-				}
-				function jumpSelf(URL) {
-					window.location.href = URL+(T3_RETURN_URL?"&returnUrl="+T3_RETURN_URL:"");
-					return false;
-				}
-
-				function setHighlight(id) {
-					top.fsMod.recentIds["web"] = id;
-					top.fsMod.navFrameHighlightedID["web"] = top.fsMod.currentBank + "_" + id; // For highlighting
-
-					if (top.nav_frame && top.nav_frame.refresh_nav) {
-						top.nav_frame.refresh_nav();
-					}
-				}
-
-				' . $dblist->CBfunctions() . '
-				function editRecords(table,idList,addParams,CBflag) {
-				    var recordEditUrl = ' . GeneralUtility::quoteJSvalue($uriBuilder->buildUriFromRoute('record_edit', ['returnUrl' => GeneralUtility::getIndpEnv('REQUEST_URI')])) . ';
-					window.location.href = recordEditUrl + "&edit[" + table + "][" + idList + "]=edit" + addParams;
-				}
-				function editList(table,idList) {
-					var list="";
-
-						// Checking how many is checked, how many is not
-					var pointer=0;
-					var pos = idList.indexOf(",");
-					while (pos!=-1) {
-						if (cbValue(table+"|"+idList.substr(pointer,pos-pointer))) {
-							list+=idList.substr(pointer,pos-pointer)+",";
-						}
-						pointer=pos+1;
-						pos = idList.indexOf(",",pointer);
-					}
-					if (cbValue(table+"|"+idList.substr(pointer))) {
-						list+=idList.substr(pointer)+",";
-					}
-
-					return list ? list : idList;
-				}
-				T3_THIS_LOCATION = ' . GeneralUtility::quoteJSvalue(rawurlencode(GeneralUtility::getIndpEnv('REQUEST_URI'))) . ';
-
-				if (top.fsMod) top.fsMod.recentIds["web"] = ' . (int)$this->id . ';
-			'
-            );
-            // Setting up the context sensitive menu:
-            $this->pageRenderer->loadJavaScriptModule('TYPO3/CMS/Backend/ContextMenu');
-            $this->pageRenderer->loadJavaScriptModule('TYPO3/CMS/Backend/AjaxDataHandler');
             // Begin to compile the whole page
-            $content .= '<form action="' . htmlspecialchars($dblist->listURL()) . '" method="post" name="dblistForm">' . $dblist->HTMLcode . '<input type="hidden" name="cmd_table" /><input type="hidden" name="cmd" /></form>';
-            // If a listing was produced, create the page footer with search form etc:
-            // Making field select box (when extended view for a single table is enabled):
-            if ($dblist->HTMLcode && $dblist->table) {
-                $content .= $dblist->fieldSelectBox($dblist->table);
-            }
+            $content .= '<form action="' . htmlspecialchars($dblist->listURL()) . '" method="post" name="dblistForm">' . $dblistContent . '<input type="hidden" name="cmd_table" /><input type="hidden" name="cmd" /></form>';
         } else {
             // Not enough rights to access the list view or the page
-            $this->addMessage(
-                $this->getLanguageService()->getLL('action_error-access'),
-                $this->getLanguageService()->getLL('action_error'),
+            $this->addFlashMessage(
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error-access'),
+                $this->getLanguageService()->sL('LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:action_error'),
                 ContextualFeedbackSeverity::ERROR
             );
             $content .= $this->renderFlashMessages();
@@ -1098,9 +1059,12 @@ class ActionTask implements TaskInterface
      * @param string $title
      * @param int $severity
      *
-     * @throws \TYPO3\CMS\Core\Exception
+     * @throws Exception
      */
-    protected function addMessage($message, $title = '', $severity = ContextualFeedbackSeverity::OK)
+    protected function addFlashMessage(
+        string $message,
+        string $title = '',
+        $severity = ContextualFeedbackSeverity::OK)
     {
         $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $message, $title, $severity);
         $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
@@ -1125,7 +1089,7 @@ class ActionTask implements TaskInterface
      *
      * @return LanguageService
      */
-    protected function getLanguageService()
+    protected function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
     }
@@ -1135,7 +1099,7 @@ class ActionTask implements TaskInterface
      *
      * @return BackendUserAuthentication
      */
-    protected function getBackendUser()
+    protected function getBackendUser(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
     }

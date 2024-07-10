@@ -1,4 +1,5 @@
 <?php
+
 namespace TYPO3\CMS\SysAction\Tests\Functional\Tca;
 
 /*
@@ -13,65 +14,65 @@ namespace TYPO3\CMS\SysAction\Tests\Functional\Tca;
  *
  * The TYPO3 project - inspiring people to share!
  */
-use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use TYPO3\CMS\Backend\Tests\Functional\Form\FormTestService;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class ActionVisibleFieldsTest extends FunctionalTestCase
 {
-    protected $coreExtensionsToLoad = ['sys_action'];
+  protected $coreExtensionsToLoad = ['sys_action'];
 
-    protected static $actionCommonFields = [
-        'type',
-        'title',
-        'description',
-        'hidden',
-        'assign_to_groups',
-    ];
+  protected static $actionCommonFields = [
+    'type',
+    'title',
+    'description',
+    'hidden',
+    'assign_to_groups',
+  ];
 
-    protected static $actionFieldsByType = [
-        '0' => [],
-        '1' => [
-            't1_userprefix',
-            't1_copy_of_user',
-            't1_allowed_groups',
-            't1_create_user_dir',
-        ],
-        '2' => [],
-        '3' => [
-            't3_listPid',
-            't3_tables',
-        ],
-        '4' => [
-            't4_recordsToEdit',
-        ],
-        '5' => [
-            't3_listPid',
-            't3_tables',
-        ],
-    ];
+  protected static $actionFieldsByType = [
+    '0' => [],
+    '1' => [
+      't1_userprefix',
+      't1_copy_of_user',
+      't1_allowed_groups',
+      't1_create_user_dir',
+    ],
+    '2' => [],
+    '3' => [
+      't3_listPid',
+      't3_tables',
+    ],
+    '4' => [
+      't4_recordsToEdit',
+    ],
+    '5' => [
+      't3_listPid',
+      't3_tables',
+    ],
+  ];
 
-    /**
-     * @test
-     */
-    public function actionFormContainsExpectedFields()
-    {
-        $this->setUpBackendUserFromFixture(1);
-        $GLOBALS['LANG'] = GeneralUtility::makeInstance(LanguageService::class);
+  /**
+   * @test
+   */
+  public function actionFormContainsExpectedFields()
+  {
+    $this->setUpBackendUserFromFixture(1);
+    $GLOBALS['LANG'] = GeneralUtility::makeInstance(LanguageService::class);
 
-        $formEngineTestService = GeneralUtility::makeInstance(FormTestService::class);
+    $formEngineTestService = GeneralUtility::makeInstance(FormTestService::class);
 
-        foreach (static::$actionFieldsByType as $type => $additionalFields) {
-            $expectedFields = array_merge(static::$actionCommonFields, $additionalFields);
-            $formResult = $formEngineTestService->createNewRecordForm('sys_action', ['type' => $type]);
+    foreach (static::$actionFieldsByType as $type => $additionalFields) {
+      $expectedFields = array_merge(static::$actionCommonFields, $additionalFields);
+      $formResult = $formEngineTestService->createNewRecordForm('sys_action', ['type' => $type]);
 
-            foreach ($expectedFields as $expectedField) {
-                $this->assertNotFalse(
-                    $formEngineTestService->formHtmlContainsField($expectedField, $formResult['html']),
-                    'The field ' . $expectedField . ' is not in the form HTML'
-                );
-            }
-        }
+      foreach ($expectedFields as $expectedField) {
+        self::assertNotFalse(
+          $formEngineTestService->formHtmlContainsField($expectedField, $formResult['html']),
+          'The field ' . $expectedField . ' is not in the form HTML'
+        );
+      }
     }
+  }
 }

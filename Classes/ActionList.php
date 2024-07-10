@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace TYPO3\CMS\SysAction;
 
 /*
@@ -33,26 +36,18 @@ class ActionList extends DatabaseRecordList
      * @param string $excludeList Comma separated list of fields NOT to include ("sortField" or "sortRev")
      * @return string
      */
-    public function listURL($alternativeId = '', $table = '-1', $excludeList = '')
+    public function listURL(
+        $alternativeId = '',
+        $table = '-1',
+        $excludeList = '')
     {
         $urlParameters = [];
-        if ((string)$alternativeId !== '') {
-            $urlParameters['id'] = $alternativeId;
-        } else {
-            $urlParameters['id'] = $this->id;
-        }
-        if ($table === '-1') {
-            $urlParameters['table'] = $this->table;
-        } else {
-            $urlParameters['table'] = $table;
-        }
-        if ($this->thumbs) {
-            $urlParameters['imagemode'] = $this->thumbs;
-        }
+        $urlParameters['id'] = (string)$alternativeId !== '' ? $alternativeId : $this->id;
+        $urlParameters['table'] = $table === '-1' ? $this->table : $table;
         if ($this->returnUrl) {
             $urlParameters['returnUrl'] = $this->returnUrl;
         }
-        if ($this->searchString) {
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'search_field')) && $this->searchString) {
             $urlParameters['search_field'] = $this->searchString;
         }
         if ($this->searchLevels) {
@@ -61,8 +56,8 @@ class ActionList extends DatabaseRecordList
         if ($this->showLimit) {
             $urlParameters['showLimit'] = $this->showLimit;
         }
-        if ($this->firstElementNumber) {
-            $urlParameters['pointer'] = $this->firstElementNumber;
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'pointer')) && $this->page) {
+            $urlParameters['pointer'] = $this->page;
         }
         if ((!$excludeList || !GeneralUtility::inList($excludeList, 'sortField')) && $this->sortField) {
             $urlParameters['sortField'] = $this->sortField;
@@ -70,11 +65,13 @@ class ActionList extends DatabaseRecordList
         if ((!$excludeList || !GeneralUtility::inList($excludeList, 'sortRev')) && $this->sortRev) {
             $urlParameters['sortRev'] = $this->sortRev;
         }
-        if (GeneralUtility::_GP('SET')) {
-            $urlParameters['SET'] = GeneralUtility::_GP('SET');
+        $set = $this->request->getQueryParams()['SET'] ?? $this->request->getParsedBody()['SET'] ?? false;
+        if ($set) {
+            $urlParameters['SET'] = $set;
         }
-        if (GeneralUtility::_GP('show')) {
-            $urlParameters['show'] = (int)GeneralUtility::_GP('show');
+        $show = $this->request->getQueryParams()['show'] ?? $this->request->getParsedBody()['show'] ?? 0;
+        if ($show) {
+            $urlParameters['show'] = (int)$show;
         }
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
