@@ -14,8 +14,6 @@ CREATE TABLE sys_action (
   t3_tables varchar(255) DEFAULT '' NOT NULL,
   t4_recordsToEdit text,
   t1_all_created_users_visible tinyint(3) DEFAULT '0' NOT NULL,
-
-  KEY cruser_id (cruser_id)
 );
 
 #
