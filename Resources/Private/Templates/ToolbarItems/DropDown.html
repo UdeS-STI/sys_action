@@ -1,6 +1,10 @@
-<html xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers" data-namespace-typo3-fluid="true">
+<html
+		xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+		xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+		data-namespace-typo3-fluid="true"
+>
 <h3 class="dropdown-headline">
-	<f:translate key="sys_action"/>
+	<f:translate key="LLL:EXT:sys_action/Resources/Private/Language/locallang.xlf:sys_action" />
 </h3>
 <hr>
 <div class="dropdown-table">
@@ -13,7 +17,7 @@
 			</div>
 			<div class="dropdown-table-column dropdown-table-title">
 				<a href="{action.link -> f:format.htmlspecialchars()}" class="t3js-topbar-link" target="list_frame">
-					{action.title -> f:format.htmlspecialchars()}
+					<f:format.htmlspecialchars>{action.title}</f:format.htmlspecialchars>
 				</a>
 			</div>
 		</div>
