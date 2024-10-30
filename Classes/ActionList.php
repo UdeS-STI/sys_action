@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace TYPO3\CMS\SysAction;
 
 /*
@@ -13,14 +16,15 @@ namespace TYPO3\CMS\SysAction;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Backend\RecordList\DatabaseRecordList;
+use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Class for the list rendering of Web>Task Center module
  * @internal
  */
-class ActionList extends \TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList
+class ActionList extends DatabaseRecordList
 {
     /**
      * Creates the URL to this script, including all relevant GPvars
@@ -32,26 +36,18 @@ class ActionList extends \TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList
      * @param string $excludeList Comma separated list of fields NOT to include ("sortField" or "sortRev")
      * @return string
      */
-    public function listURL($alternativeId = '', $table = '-1', $excludeList = '')
+    public function listURL(
+        $alternativeId = '',
+        $table = '-1',
+        $excludeList = '')
     {
         $urlParameters = [];
-        if ((string)$alternativeId !== '') {
-            $urlParameters['id'] = $alternativeId;
-        } else {
-            $urlParameters['id'] = $this->id;
-        }
-        if ($table === '-1') {
-            $urlParameters['table'] = $this->table;
-        } else {
-            $urlParameters['table'] = $table;
-        }
-        if ($this->thumbs) {
-            $urlParameters['imagemode'] = $this->thumbs;
-        }
+        $urlParameters['id'] = (string)$alternativeId !== '' ? $alternativeId : $this->id;
+        $urlParameters['table'] = $table === '-1' ? $this->table : $table;
         if ($this->returnUrl) {
             $urlParameters['returnUrl'] = $this->returnUrl;
         }
-        if ($this->searchString) {
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'search_field')) && $this->searchString) {
             $urlParameters['search_field'] = $this->searchString;
         }
         if ($this->searchLevels) {
@@ -60,23 +56,25 @@ class ActionList extends \TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList
         if ($this->showLimit) {
             $urlParameters['showLimit'] = $this->showLimit;
         }
-        if ($this->firstElementNumber) {
-            $urlParameters['pointer'] = $this->firstElementNumber;
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'pointer')) && $this->page) {
+            $urlParameters['pointer'] = $this->page;
         }
-        if ((!$excludeList || !\TYPO3\CMS\Core\Utility\GeneralUtility::inList($excludeList, 'sortField')) && $this->sortField) {
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'sortField')) && $this->sortField) {
             $urlParameters['sortField'] = $this->sortField;
         }
-        if ((!$excludeList || !\TYPO3\CMS\Core\Utility\GeneralUtility::inList($excludeList, 'sortRev')) && $this->sortRev) {
+        if ((!$excludeList || !GeneralUtility::inList($excludeList, 'sortRev')) && $this->sortRev) {
             $urlParameters['sortRev'] = $this->sortRev;
         }
-        if (\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('SET')) {
-            $urlParameters['SET'] = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('SET');
+        $set = $this->request->getQueryParams()['SET'] ?? $this->request->getParsedBody()['SET'] ?? false;
+        if ($set) {
+            $urlParameters['SET'] = $set;
         }
-        if (\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('show')) {
-            $urlParameters['show'] = (int)\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('show');
+        $show = $this->request->getQueryParams()['show'] ?? $this->request->getParsedBody()['show'] ?? 0;
+        if ($show) {
+            $urlParameters['show'] = (int)$show;
         }
-        /** @var \TYPO3\CMS\Backend\Routing\UriBuilder $uriBuilder */
-        $uriBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Backend\Routing\UriBuilder::class);
+        /** @var UriBuilder $uriBuilder */
+        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         return (string)$uriBuilder->buildUriFromRoute('user_task', $urlParameters);
     }
 }
